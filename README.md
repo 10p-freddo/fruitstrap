@@ -1,6 +1,6 @@
 fruitstrap
 ==========
-Install and debug iPhone apps without Xcode. Designed to work on unjailbroken devices.
+Install and debug iPhone apps without using Xcode. Designed to work on unjailbroken devices.
 
 ## Requirements
 

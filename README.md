@@ -9,8 +9,8 @@ Install and debug iPhone apps without using Xcode. Designed to work on unjailbro
 * Xcode must be installed, along with the SDK for your iOS version.
 
 ## Usage
-* `fruitstrap [-d] <app>`
 
+* `fruitstrap [-d] <app>`
 * Optional `-d` flag launches a remote GDB session after the app has been installed.
 * `<app>` must be an iPhone application bundle, *not* an IPA.
 

@@ -49,24 +49,39 @@ char *app_path = NULL;
 CFStringRef last_path = NULL;
 service_conn_t gdbfd;
 
+Boolean path_exists(CFTypeRef path) {
+    if (CFGetTypeID(path) == CFStringGetTypeID()) {
+        CFURLRef url = CFURLCreateWithFileSystemPath(NULL, path, kCFURLPOSIXPathStyle, true);
+        Boolean result = CFURLResourceIsReachable(url, NULL);
+        CFRelease(url);
+        return result;
+    } else if (CFGetTypeID(path) == CFURLGetTypeID()) {
+        return CFURLResourceIsReachable(path, NULL);
+    } else {
+        return false;
+    }
+}
+
 CFStringRef copy_device_support_path(AMDeviceRef device) {
     CFStringRef version = AMDeviceCopyValue(device, 0, CFSTR("ProductVersion"));
     CFStringRef build = AMDeviceCopyValue(device, 0, CFSTR("BuildVersion"));
     CFStringRef path_with_build = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Developer/Platforms/iPhoneOS.platform/DeviceSupport/%@ (%@)"), version, build);
     CFStringRef path_without_build = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Developer/Platforms/iPhoneOS.platform/DeviceSupport/%@"), version);
-
     CFRelease(version);
     CFRelease(build);
 
     // they tack the build number on for beta builds
-    if (access(CFStringGetCStringPtr(path_with_build, kCFStringEncodingMacRoman), F_OK) == 0) {
+    // there is almost certainly a better way of doing this
+    if (path_exists(path_with_build)) {
         CFRelease(path_without_build);
+        CFRelease(library_path);
         return path_with_build;
-    } else if (access(CFStringGetCStringPtr(path_without_build, kCFStringEncodingMacRoman), F_OK) == 0) {
+    } else if (path_exists(path_without_build)) {
         CFRelease(path_with_build);
+        CFRelease(library_path);
         return path_without_build;
     } else {
-        printf("[ !! ] Unable to locate DeviceSupport directory. Is Xcode installed?\n");
+        printf("[ !! ] Unable to locate DeviceSupport directory.\n");
         exit(1);
     }
 }
@@ -236,7 +251,7 @@ void write_gdb_prep_cmds(AMDeviceRef device, CFURLRef disk_app_url) {
     fclose(out);
 
     CFRelease(cmds);
-    CFRelease(ds_path);
+    if (ds_path != NULL) CFRelease(ds_path);
     CFRelease(bundle_identifier);
     CFRelease(device_app_url);
     CFRelease(device_app_path);

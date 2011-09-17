@@ -74,11 +74,9 @@ CFStringRef copy_device_support_path(AMDeviceRef device) {
     // there is almost certainly a better way of doing this
     if (path_exists(path_with_build)) {
         CFRelease(path_without_build);
-        CFRelease(library_path);
         return path_with_build;
     } else if (path_exists(path_without_build)) {
         CFRelease(path_with_build);
-        CFRelease(library_path);
         return path_without_build;
     } else {
         printf("[ !! ] Unable to locate DeviceSupport directory.\n");

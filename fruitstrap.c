@@ -46,6 +46,7 @@ int AMDeviceLookupApplications(AMDeviceRef device, int zero, CFDictionaryRef* re
 
 bool found_device = false, debug = false;
 char *app_path = NULL;
+char *device_id = NULL;
 CFStringRef last_path = NULL;
 service_conn_t gdbfd;
 
@@ -285,9 +286,22 @@ void start_remote_debug_server(AMDeviceRef device) {
 
 void handle_device(AMDeviceRef device) {
     if (found_device) return; // handle one device only
-    found_device = true;
+    
+    CFStringRef found_device_id = AMDeviceCopyDeviceIdentifier(device);
+
+    if (device_id != NULL) {
+        if(strcmp(device_id, CFStringGetCStringPtr(found_device_id, CFStringGetSystemEncoding())) == 0) {
+            found_device = true;
+        } else {
+            return;
+        }
+    } else {
+        found_device = true;
+    }
+
     CFRetain(device); // don't know if this is necessary?
-    printf("[  0%%] Found device, beginning install\n");
+
+    printf("[  0%%] Found device (%s), beginning install\n", CFStringGetCStringPtr(found_device_id, CFStringGetSystemEncoding()));
 
     AMDeviceConnect(device);
     assert(AMDeviceIsPaired(device));
@@ -353,18 +367,25 @@ void device_callback(struct am_device_notification_callback_info *info, void *ar
 
 int main(int argc, char *argv[]) {
     if (argc < 2 || argc > 3) {
-        printf("usage: %s [-d] <app>\n", argv[0]);
+        printf("usage: %s [-d] <app> [device_id]\n", argv[0]);
         exit(1);
     }
 
+    
     if (strcmp(argv[1], "-d") == 0) {
-        assert(argc == 3);
+        assert(argc == 3 || argc == 4);
         debug = true;
         app_path = argv[2];
+        if (argc == 4) {
+            device_id = argv[3];
+        }
         printf("------ Install phase ------\n");
     } else {
-        assert(argc == 2);
+        assert(argc == 2 || argc == 3);
         app_path = argv[1];
+        if (argc == 3) {
+            device_id = argv[2];
+        }
     }
 
     assert(access(app_path, F_OK) == 0);

@@ -366,7 +366,7 @@ void device_callback(struct am_device_notification_callback_info *info, void *ar
 }
 
 int main(int argc, char *argv[]) {
-    if (argc < 2 || argc > 3) {
+    if (argc < 2 || argc > 4) {
         printf("usage: %s [-d] <app> [device_id]\n", argv[0]);
         exit(1);
     }

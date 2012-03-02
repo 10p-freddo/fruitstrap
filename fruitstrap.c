@@ -1,4 +1,3 @@
-//TODO: find mystery segfault in write_gdb_prep_cmds -> CFURLCreateCopyDeletingLastPathComponent(NULL, disk_app_url)
 //TODO: don't copy/mount DeveloperDiskImage.dmg if it's already done - Xcode checks this somehow
 
 #import <CoreFoundation/CoreFoundation.h>
@@ -93,7 +92,7 @@ CFStringRef copy_device_support_path(AMDeviceRef device) {
     }
     if (!found)
     {
-        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Applications/Xcode.app/Contents//Developer/Platforms/iPhoneOS.platform/DeviceSupport/%@"), version);
+        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/DeviceSupport/%@"), version);
         found = path_exists(path);
     }
 

@@ -91,6 +91,11 @@ CFStringRef copy_device_support_path(AMDeviceRef device) {
         path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Developer/Platforms/iPhoneOS.platform/DeviceSupport/%@"), version);
         found = path_exists(path);
     }
+    if (!found)
+    {
+        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Applications/Xcode.app/Contents//Developer/Platforms/iPhoneOS.platform/DeviceSupport/%@"), version);
+        found = path_exists(path);
+    }
 
     CFRelease(version);
     CFRelease(build);

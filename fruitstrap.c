@@ -40,6 +40,15 @@
     sharedlibrary apply-load-rules all\n\
     set inferior-auto-start-dyld 1")
 
+typedef enum {
+    OP_NONE,
+
+    OP_INSTALL,
+    OP_UNINSTALL,
+    OP_LIST_DEVICES
+
+} operation_t;
+
 typedef struct am_device * AMDeviceRef;
 int AMDeviceSecureTransferPath(int zero, AMDeviceRef device, CFURLRef url, CFDictionaryRef options, void *callback, int cbarg);
 int AMDeviceSecureInstallApplication(int zero, AMDeviceRef device, CFURLRef url, CFDictionaryRef options, void *callback, int cbarg);
@@ -51,7 +60,7 @@ char *app_path = NULL;
 char *device_id = NULL;
 char *args = NULL;
 int timeout = 0;
-bool list_devices = FALSE;
+operation_t operation = OP_INSTALL;
 CFStringRef last_path = NULL;
 service_conn_t gdbfd;
 
@@ -227,7 +236,7 @@ void transfer_callback(CFDictionaryRef dict, int arg) {
     }
 }
 
-void install_callback(CFDictionaryRef dict, int arg) {
+void operation_callback(CFDictionaryRef dict, int arg) {
     int percent;
     CFStringRef status = CFDictionaryGetValue(dict, CFSTR("Status"));
     CFNumberGetValue(CFDictionaryGetValue(dict, CFSTR("PercentComplete")), kCFNumberSInt32Type, &percent);
@@ -399,7 +408,7 @@ void handle_device(AMDeviceRef device) {
             return;
         }
     } else {
-        if (list_devices) {
+        if (operation == OP_LIST_DEVICES) {
             printf ("%s\n", CFStringGetCStringPtr(found_device_id, CFStringGetSystemEncoding()));
             CFRetain(device); // don't know if this is necessary?
             return;
@@ -426,9 +435,11 @@ void handle_device(AMDeviceRef device) {
     assert(AMDeviceStartService(device, CFSTR("com.apple.afc"), &afcFd, NULL) == 0);
     assert(AMDeviceStopSession(device) == 0);
     assert(AMDeviceDisconnect(device) == 0);
-    assert(AMDeviceTransferApplication(afcFd, path, NULL, transfer_callback, NULL) == 0);
 
-    close(afcFd);
+    if (operation == OP_INSTALL) {
+        assert(AMDeviceTransferApplication(afcFd, path, NULL, transfer_callback, NULL) == 0);
+        close(afcFd);
+    }
 
     CFStringRef keys[] = { CFSTR("PackageType") };
     CFStringRef values[] = { CFSTR("Developer") };
@@ -445,19 +456,34 @@ void handle_device(AMDeviceRef device) {
     assert(AMDeviceStopSession(device) == 0);
     assert(AMDeviceDisconnect(device) == 0);
 
-    mach_error_t result = AMDeviceInstallApplication(installFd, path, options, install_callback, NULL);
-    if (result != 0)
-    {
-       PRINT("AMDeviceInstallApplication failed: %d\n", result);
-        exit(1);
+    if (operation == OP_INSTALL) {
+        
+        mach_error_t result = AMDeviceInstallApplication(installFd, path, options, operation_callback, NULL);
+        if (result != 0)
+        {
+           PRINT("AMDeviceInstallApplication failed: %d\n", result);
+            exit(1);
+        }
+    } else if (operation == OP_UNINSTALL) {
+        mach_error_t result = AMDeviceUninstallApplication (installFd, path, NULL, operation_callback, NULL);
+        if (result != 0)
+        {
+           PRINT("AMDeviceUninstallApplication failed: %d\n", result);
+            exit(1);
+        }
     }
+
 
     close(installFd);
 
     CFRelease(path);
     CFRelease(options);
 
-    PRINT("[100%%] Installed package %s\n", app_path);
+    if (operation == OP_INSTALL)
+        PRINT("[100%%] Installed package %s\n", app_path);
+    else if (operation == OP_UNINSTALL)
+        PRINT("[100%%] uninstalled package %s\n", app_path);
+
 
     if (!debug) exit(0); // no debug phase
 
@@ -505,7 +531,8 @@ void timeout_callback(CFRunLoopTimerRef timer, void *info) {
 }
 
 void usage(const char* app) {
-    printf("usage: %s [-d/--debug] [-i/--id device_id] [-l/--list-devices] [-q/--quiet] -b/--bundle bundle.app [-a/--args arguments] [-t/--timeout timeout(seconds)]\n", app);
+    printf("usage: %s [-q/--quiet] [-t/--timeout timeout(seconds)] [-i/--install] [-u/--uninstall] [-l/--list-devices] [-d/--debug] [-i/--id device_id] -b/--bundle bundle.app [-a/--args arguments] \n", app);
+    printf("one of --install, --uninstall, --listdevices must be specified \n");
 }
 
 int main(int argc, char *argv[]) {
@@ -517,6 +544,7 @@ int main(int argc, char *argv[]) {
         { "args", required_argument, NULL, 'a' },
         { "verbose", no_argument, NULL, 'v' },
         { "quiet", no_argument, NULL, 'q' },
+        { "uninstall", no_argument, NULL, 'u' },
         { "timeout", required_argument, NULL, 't' },
         { NULL, 0, NULL, 0 },
     };
@@ -544,7 +572,10 @@ int main(int argc, char *argv[]) {
             timeout = atoi(optarg);
             break;
         case 'l':
-            list_devices = 1;
+            operation = OP_LIST_DEVICES;
+            break;
+        case 'u':
+            operation = OP_UNINSTALL;
             break;
         case 'q':
             quiet = 1;
@@ -555,14 +586,16 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    if (!list_devices && !app_path) {
+    if (operation == OP_NONE) {
+        usage (argv [0]);
+        exit (0);
+    }
+    if (operation != OP_LIST_DEVICES && !app_path) {
         usage(argv[0]);
         exit(0);
     }
 
-    PRINT("------ Install phase ------\n");
-
-    if (!list_devices)
+    if (operation == OP_INSTALL)
         assert(access(app_path, F_OK) == 0);
 
     AMDSetLogLevel(5); // otherwise syslog gets flooded with crap

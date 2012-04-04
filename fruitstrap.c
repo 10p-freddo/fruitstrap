@@ -531,33 +531,46 @@ void timeout_callback(CFRunLoopTimerRef timer, void *info) {
 }
 
 void usage(const char* app) {
-    printf("usage: %s [-q/--quiet] [-t/--timeout timeout(seconds)] [-i/--install] [-u/--uninstall] [-l/--list-devices] [-d/--debug] [-i/--id device_id] -b/--bundle bundle.app [-a/--args arguments] \n", app);
-    printf("one of --install, --uninstall, --listdevices must be specified \n");
+    printf ("usage: %s [-q/--quiet] [-t/--timeout timeout(seconds)] [-v/--verbose] <command> [<args>] \n\n", app);
+    printf ("Commands available:\n");
+    printf ("   install    [-i/--id device_id] -b/--bundle bundle.app [-a/--args arguments] \n");
+    printf ("    * Install the specified app with optional arguments to the specified device, or all attached devices if none are specified. \n\n");
+    printf ("   uninstall  [-i/--id device_id] -b/--bundle bundle.app \n");
+    printf ("    * Removed the specified bundle identifier (eg com.foo.MyApp) from the specified device, or all attached devices if none are specified. \n\n");
+    printf ("   list-devices  \n");
+    printf ("    * List all attached devices. \n\n");
 }
 
 int main(int argc, char *argv[]) {
-    static struct option longopts[] = {
-        { "debug", no_argument, NULL, 'd' },
-        { "id", required_argument, NULL, 'i' },
-        { "list-devices", no_argument, NULL, 'l' },
-        { "bundle", required_argument, NULL, 'b' },
-        { "args", required_argument, NULL, 'a' },
-        { "verbose", no_argument, NULL, 'v' },
+    static struct option global_longopts[]= {
         { "quiet", no_argument, NULL, 'q' },
-        { "uninstall", no_argument, NULL, 'u' },
+        { "verbose", no_argument, NULL, 'v' },
         { "timeout", required_argument, NULL, 't' },
+        
+        { "id", required_argument, NULL, 'i' },
+        { "bundle", required_argument, NULL, 'b' },
+   
+        { "debug", no_argument, NULL, 'd' },
+        { "args", required_argument, NULL, 'a' },
+
         { NULL, 0, NULL, 0 },
     };
-    char ch;
 
-    while ((ch = getopt_long(argc, argv, "dvi:b:a:t:", longopts, NULL)) != -1)
+    char ch;
+    while ((ch = getopt_long(argc, argv, "qvdt:", global_longopts, NULL)) != -1)
     {
         switch (ch) {
+        case 'q':
+            quiet = 1;
+            break;
+        case 'v':
+            verbose = 1;
+            break;
         case 'd':
             debug = 1;
             break;
-        case 'i':
-            device_id = optarg;
+        case 't':
+            timeout = atoi(optarg);
             break;
         case 'b':
             app_path = optarg;
@@ -565,31 +578,29 @@ int main(int argc, char *argv[]) {
         case 'a':
             args = optarg;
             break;
-        case 'v':
-            verbose = 1;
-            break;
-        case 't':
-            timeout = atoi(optarg);
-            break;
-        case 'l':
-            operation = OP_LIST_DEVICES;
-            break;
-        case 'u':
-            operation = OP_UNINSTALL;
-            break;
-        case 'q':
-            quiet = 1;
-            break;
         default:
             usage(argv[0]);
             return 1;
         }
     }
+    
+    if (optind >= argc) {
+        usage(argv [0]);
+        exit (0);
+    }
 
-    if (operation == OP_NONE) {
+    operation = OP_NONE;
+    if (strcmp (argv [optind], "install") == 0) {
+        operation = OP_INSTALL;
+    } else if (strcmp (argv [optind], "uninstall") == 0) {
+        operation = OP_UNINSTALL;
+    } else if (strcmp (argv [optind], "list-devices") == 0) {
+        operation = OP_LIST_DEVICES;
+    } else {
         usage (argv [0]);
         exit (0);
     }
+
     if (operation != OP_LIST_DEVICES && !app_path) {
         usage(argv[0]);
         exit(0);

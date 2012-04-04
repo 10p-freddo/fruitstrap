@@ -13,13 +13,14 @@ Install and debug iPhone apps without using Xcode. Designed to work on unjailbro
 `fruitstrap [-q/--quiet] [-t/--timeout timeout(seconds)] [-v/--verbose] <command> [<args>]`
 
 Commands available:
-* `install    [-i/--id device_id] -b/--bundle bundle.app [-a/--args arguments]`
+
+* `install    [-i/--id device_id] -b/--bundle bundle.app [-a/--args arguments]`:
    Install the specified app with optional arguments to the specified device, or all attached devices if none are specified. 
 
-* uninstall  [-i/--id device_id] -b/--bundle bundle.app 
+* `uninstall  [-i/--id device_id] -b/--bundle bundle.app`: 
   Removed the specified bundle identifier (eg com.foo.MyApp) from the specified device, or all attached devices if none are specified. 
 
-* list-devices  
+* `list-devices`:
   List all attached devices. 
 
 

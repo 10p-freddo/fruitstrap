@@ -557,7 +557,7 @@ int main(int argc, char *argv[]) {
     };
 
     char ch;
-    while ((ch = getopt_long(argc, argv, "qvdt:", global_longopts, NULL)) != -1)
+    while ((ch = getopt_long(argc, argv, "qvtibda:", global_longopts, NULL)) != -1)
     {
         switch (ch) {
         case 'q':
@@ -577,6 +577,9 @@ int main(int argc, char *argv[]) {
             break;
         case 'a':
             args = optarg;
+            break;
+        case 'i':
+            device_id = optarg;
             break;
         default:
             usage(argv[0]);

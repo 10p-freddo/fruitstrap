@@ -36,7 +36,10 @@
     set inferior-auto-start-cfm off\n\
     set sharedLibrary load-rules dyld \".*libobjc.*\" all dyld \".*CoreFoundation.*\" all dyld \".*Foundation.*\" all dyld \".*libSystem.*\" all dyld \".*AppKit.*\" all dyld \".*PBGDBIntrospectionSupport.*\" all dyld \".*/usr/lib/dyld.*\" all dyld \".*CarbonDataFormatters.*\" all dyld \".*libauto.*\" all dyld \".*CFDataFormatters.*\" all dyld \"/System/Library/Frameworks\\\\\\\\|/System/Library/PrivateFrameworks\\\\\\\\|/usr/lib\" extern dyld \".*\" all exec \".*\" all\n\
     sharedlibrary apply-load-rules all\n\
-    set inferior-auto-start-dyld 1")
+    set inferior-auto-start-dyld 1\n\
+    continue\n\
+    quit\n\
+    ")
 
 typedef struct am_device * AMDeviceRef;
 int AMDeviceSecureTransferPath(int zero, AMDeviceRef device, CFURLRef url, CFDictionaryRef options, void *callback, int cbarg);
@@ -45,6 +48,9 @@ int AMDeviceMountImage(AMDeviceRef device, CFStringRef image, CFDictionaryRef op
 int AMDeviceLookupApplications(AMDeviceRef device, int zero, CFDictionaryRef* result);
 
 bool found_device = false, debug = false, verbose = false;
+int numTries = 20;
+bool nonStop = false;
+
 char *app_path = NULL;
 char *device_id = NULL;
 char *args = NULL;
@@ -324,6 +330,13 @@ void write_gdb_prep_cmds(AMDeviceRef device, CFURLRef disk_app_url) {
     CFStringFindAndReplace(cmds, CFSTR("{disk_app}"), disk_app_path, range, 0);
     range.length = CFStringGetLength(cmds);
 
+	  if (!nonStop)
+	  {
+		 CFStringFindAndReplace(cmds, CFSTR("continue"), CFSTR(""), range, 0);
+     range.length = CFStringGetLength(cmds);
+		 CFStringFindAndReplace(cmds, CFSTR("quit"), CFSTR(""), range, 0);
+     range.length = CFStringGetLength(cmds);
+	  }
     CFURLRef device_container_url = CFURLCreateCopyDeletingLastPathComponent(NULL, device_app_url);
     CFStringRef device_container_path = CFURLCopyFileSystemPath(device_container_url, kCFURLPOSIXPathStyle);
     CFMutableStringRef dcp_noprivate = CFStringCreateMutableCopy(NULL, 0, device_container_path);
@@ -340,6 +353,7 @@ void write_gdb_prep_cmds(AMDeviceRef device, CFURLRef disk_app_url) {
     CFDataRef cmds_data = CFStringCreateExternalRepresentation(NULL, cmds, kCFStringEncodingASCII, 0);
     FILE *out = fopen(PREP_CMDS_PATH, "w");
     fwrite(CFDataGetBytePtr(cmds_data), CFDataGetLength(cmds_data), 1, out);
+
     fclose(out);
 
     CFRelease(cmds);
@@ -384,6 +398,9 @@ void gdb_ready_handler(int signum)
 }
 
 void handle_device(AMDeviceRef device) {
+   int i;
+   int connected = 0;
+   
     if (found_device) return; // handle one device only
 
     CFStringRef found_device_id = AMDeviceCopyDeviceIdentifier(device);
@@ -452,11 +469,29 @@ void handle_device(AMDeviceRef device) {
 
     if (!debug) exit(0); // no debug phase
 
-    AMDeviceConnect(device);
-    assert(AMDeviceIsPaired(device));
-    assert(AMDeviceValidatePairing(device) == 0);
-    assert(AMDeviceStartSession(device) == 0);
-
+	  for (i=0;i<numTries;i++)
+	  {
+      AMDeviceConnect(device);
+    	if (AMDeviceIsPaired(device))
+  		{
+  			if (AMDeviceValidatePairing(device) == 0)
+  				{
+  					if (AMDeviceStartSession(device) == 0)
+  						{
+  							connected = 1;
+  							break;
+  						}
+  				}
+  		}
+    		sleep(1);
+      	printf("\n!!!!!!!!!! not paired, trying again\n");
+    }
+    
+    if (!connected)
+    {
+    	printf("failed to connect after %d tries, exiting\n", numTries);
+    	exit(0);
+    }
     printf("------ Debug phase ------\n");
 
     mount_developer_image(device);      // put debugserver on the device
@@ -496,7 +531,7 @@ void timeout_callback(CFRunLoopTimerRef timer, void *info) {
 }
 
 void usage(const char* app) {
-    printf("usage: %s [-d/--debug] [-i/--id device_id] -b/--bundle bundle.app [-a/--args arguments] [-t/--timeout timeout(seconds)]\n", app);
+    printf("usage: %s [-d/--debug] [-i/--id device_id] -b/--bundle bundle.app [-a/--args arguments] [-t/--timeout timeout(seconds)] [-r retries (connection)]\n", app);
 }
 
 int main(int argc, char *argv[]) {
@@ -507,11 +542,13 @@ int main(int argc, char *argv[]) {
         { "args", required_argument, NULL, 'a' },
         { "verbose", no_argument, NULL, 'v' },
         { "timeout", required_argument, NULL, 't' },
+        { "retries", required_argument, NULL, 'r' },
+        { "nonstop",no_argument, NULL, 'n' },
         { NULL, 0, NULL, 0 },
     };
     char ch;
 
-    while ((ch = getopt_long(argc, argv, "dvi:b:a:t:", longopts, NULL)) != -1)
+    while ((ch = getopt_long(argc, argv, "dvni:b:a:t:r:", longopts, NULL)) != -1)
     {
         switch (ch) {
         case 'd':
@@ -532,6 +569,12 @@ int main(int argc, char *argv[]) {
         case 't':
             timeout = atoi(optarg);
             break;
+        case 'r':
+            numTries = atoi(optarg);
+            break;
+        case 'n':
+        	  nonStop =1;
+        	  break;
         default:
             usage(argv[0]);
             return 1;

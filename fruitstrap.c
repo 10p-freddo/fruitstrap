@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <signal.h>
 #include <getopt.h>
+#include <pwd.h>
 #include "MobileDevice.h"
 
 #define FDVENDOR_PATH  "/tmp/fruitstrap-remote-debugserver"
@@ -65,10 +66,19 @@ Boolean path_exists(CFTypeRef path) {
     }
 }
 
+const char *get_home() {
+    const char* home = getenv("HOME");
+    if (!home) {
+        struct passwd *pwd = getpwuid(getuid());
+        home = pwd->pw_dir;
+    }
+    return home;
+}
+
 CFStringRef copy_device_support_path(AMDeviceRef device) {
     CFStringRef version = AMDeviceCopyValue(device, 0, CFSTR("ProductVersion"));
     CFStringRef build = AMDeviceCopyValue(device, 0, CFSTR("BuildVersion"));
-    const char* home = getenv("HOME");
+    const char* home = get_home();
     CFStringRef path;
     bool found = false;
 
@@ -112,7 +122,7 @@ CFStringRef copy_device_support_path(AMDeviceRef device) {
 CFStringRef copy_developer_disk_image_path(AMDeviceRef device) {
     CFStringRef version = AMDeviceCopyValue(device, 0, CFSTR("ProductVersion"));
     CFStringRef build = AMDeviceCopyValue(device, 0, CFSTR("BuildVersion"));
-    const char *home = getenv("HOME");
+    const char* home = get_home();
     CFStringRef path;
     bool found = false;
 

@@ -52,6 +52,7 @@ char *args = NULL;
 int timeout = 0;
 CFStringRef last_path = NULL;
 service_conn_t gdbfd;
+int child_pid = 0;
 
 Boolean path_exists(CFTypeRef path) {
     if (CFGetTypeID(path) == CFStringGetTypeID()) {
@@ -388,6 +389,11 @@ void start_remote_debug_server(AMDeviceRef device) {
     CFRunLoopAddSource(CFRunLoopGetMain(), CFSocketCreateRunLoopSource(NULL, fdvendor, 0), kCFRunLoopCommonModes);
 }
 
+void killed(int signum) {
+    killpg(child_pid, SIGTERM);
+    _exit(0);
+}
+
 void gdb_ready_handler(int signum)
 {
 	_exit(0);
@@ -487,6 +493,11 @@ void handle_device(AMDeviceRef device) {
         kill(parent, SIGHUP);  // "No. I am your father."
         _exit(0);
     }
+
+    child_pid = pid;
+    setpgid(pid, 0); // Set process group of child to child's pid
+    signal(SIGINT, killed);
+    signal(SIGTERM, killed);
 }
 
 void device_callback(struct am_device_notification_callback_info *info, void *arg) {

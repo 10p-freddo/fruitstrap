@@ -1,4 +1,4 @@
-## Unfortunately, I'm not able to continue maintaining fruitstrap. Please use a fork. So long, and thanks for all the fish!
+### Unfortunately, I'm not able to continue maintaining fruitstrap. Please use a fork from now on. So long, and thanks for all the fish!
 
 ---
 

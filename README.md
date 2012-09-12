@@ -1,6 +1,4 @@
-### Unfortunately, I'm not able to continue maintaining fruitstrap. Please use a fork from now on. So long, and thanks for all the fish!
-
----
+## This project is no longer maintained.
 
 fruitstrap
 ==========

@@ -2,7 +2,9 @@
 
 #import <CoreFoundation/CoreFoundation.h>
 #include <unistd.h>
+#include <sys/syslimits.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/un.h>
 #include <stdio.h>
 #include <signal.h>
@@ -11,7 +13,7 @@
 
 #define FDVENDOR_PATH  "/tmp/fruitstrap-remote-debugserver"
 #define PREP_CMDS_PATH "/tmp/fruitstrap-gdb-prep-cmds"
-#define GDB_SHELL      "/Developer/Platforms/iPhoneOS.platform/Developer/usr/libexec/gdb/gdb-arm-apple-darwin --arch armv7 -q -x " PREP_CMDS_PATH
+#define GDB_ARGS      "--arch armv7 -q -x " PREP_CMDS_PATH
 
 // approximation of what Xcode does:
 #define GDB_PREP_CMDS CFSTR("set mi-show-protections off\n\
@@ -48,6 +50,7 @@ bool found_device = false, debug = false, verbose = false;
 char *app_path = NULL;
 char *device_id = NULL;
 char *args = NULL;
+char *developer_path = NULL;
 int timeout = 0;
 CFStringRef last_path = NULL;
 service_conn_t gdbfd;
@@ -72,9 +75,21 @@ CFStringRef copy_device_support_path(AMDeviceRef device) {
     CFStringRef path;
     bool found = false;
 
-    path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%s/Library/Developer/Xcode/iOS DeviceSupport/%@ (%@)"), home, version, build);
-    found = path_exists(path);
-
+    if (developer_path)
+    {
+        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%s/Platforms/iPhoneOS.platform/DeviceSupport/%@ (%@)"), developer_path, version, build);
+        found = path_exists(path);
+    }
+    if (!found && developer_path)
+    {
+        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%s/Platforms/iPhoneOS.platform/DeviceSupport/%@"), developer_path, version);
+        found = path_exists(path);
+    }
+    if (!found)
+    {
+        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%s/Library/Developer/Xcode/iOS DeviceSupport/%@ (%@)"), home, version, build);
+        found = path_exists(path);
+    }
     if (!found)
     {
         path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Developer/Platforms/iPhoneOS.platform/DeviceSupport/%@ (%@)"), version, build);
@@ -92,8 +107,23 @@ CFStringRef copy_device_support_path(AMDeviceRef device) {
     }
     if (!found)
     {
+        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/DeviceSupport/%@ (%@)"), version, build);
+        found = path_exists(path);
+    }
+    if (!found)
+    {
         path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/DeviceSupport/%@"), version);
         found = path_exists(path);
+    }
+
+    if (!found && verbose)
+    {
+        printf("Version: ");
+        fflush(stdout);
+        CFShow(version);
+        printf("Build: ");
+        fflush(stdout);
+        CFShow(build);
     }
 
     CFRelease(version);
@@ -120,7 +150,7 @@ CFStringRef copy_developer_disk_image_path(AMDeviceRef device) {
     found = path_exists(path);
 
     if (!found) {
-        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Developer/Platforms/iPhoneOS.platform/DeviceSupport/%@ (%@/DeveloperDiskImage.dmg)"), version, build);
+        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Developer/Platforms/iPhoneOS.platform/DeviceSupport/%@ (%@)/DeveloperDiskImage.dmg)"), version, build);
         found = path_exists(path);
     }
     if (!found) {
@@ -137,6 +167,18 @@ CFStringRef copy_developer_disk_image_path(AMDeviceRef device) {
     }
     if (!found) {
         path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Developer/Platforms/iPhoneOS.platform/DeviceSupport/Latest/DeveloperDiskImage.dmg"));
+        found = path_exists(path);
+    }
+    if (!found) {
+        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/DeviceSupport/%@ (%@)/DeveloperDiskImage.dmg"), version, build);
+        found = path_exists(path);
+    }
+    if (!found) {
+        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/DeviceSupport/%@/DeveloperDiskImage.dmg"), version);
+        found = path_exists(path);
+    }
+    if (!found) {
+        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/DeviceSupport/Latest/DeveloperDiskImage.dmg"));
         found = path_exists(path);
     }
 
@@ -380,7 +422,7 @@ void start_remote_debug_server(AMDeviceRef device) {
 
 void gdb_ready_handler(int signum)
 {
-	_exit(0);
+    _exit(0);
 }
 
 void handle_device(AMDeviceRef device) {
@@ -473,7 +515,32 @@ void handle_device(AMDeviceRef device) {
     pid_t parent = getpid();
     int pid = fork();
     if (pid == 0) {
-        system(GDB_SHELL);      // launch gdb
+        char requestedPath[PATH_MAX] = "";
+        if (developer_path) {
+            snprintf(requestedPath, sizeof(requestedPath), "%s/Platforms/iPhoneOS.platform/Developer/usr/libexec/gdb/gdb-arm-apple-darwin", developer_path);
+        }
+        const char* gdbPaths[] = {
+            requestedPath,
+            "/Developer/Platforms/iPhoneOS.platform/Developer/usr/libexec/gdb/gdb-arm-apple-darwin",
+            "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/usr/libexec/gdb/gdb-arm-apple-darwin",
+        };
+        const char* gdbPath = 0;
+        int i;
+        for (i = 0; i < sizeof(gdbPaths) / sizeof(*gdbPaths); ++i) {
+            struct stat result;
+            if (*gdbPaths[i] && stat(gdbPaths[i], &result) == 0 && S_ISREG(result.st_mode)) {
+                gdbPath = gdbPaths[i];
+                break;
+            }
+        }
+        if (gdbPath) {
+            char* command = malloc(strlen(gdbPath) + strlen(GDB_ARGS) + 2);
+            sprintf(command, "%s %s", gdbPath, GDB_ARGS);
+            system(command);      // launch gdb
+        } else {
+            printf("Couldn't find gdb!\n");
+            _exit(1);
+        }
         kill(parent, SIGHUP);  // "No. I am your father."
         _exit(0);
     }
@@ -496,7 +563,7 @@ void timeout_callback(CFRunLoopTimerRef timer, void *info) {
 }
 
 void usage(const char* app) {
-    printf("usage: %s [-d/--debug] [-i/--id device_id] -b/--bundle bundle.app [-a/--args arguments] [-t/--timeout timeout(seconds)]\n", app);
+    printf("usage: %s [-d/--debug] [-i/--id device_id] -b/--bundle bundle.app [-a/--args arguments] [-t/--timeout timeout(seconds)] [-x path to Xcode's Developer directory]\n", app);
 }
 
 int main(int argc, char *argv[]) {
@@ -507,11 +574,12 @@ int main(int argc, char *argv[]) {
         { "args", required_argument, NULL, 'a' },
         { "verbose", no_argument, NULL, 'v' },
         { "timeout", required_argument, NULL, 't' },
+        { "xcode", required_argument, NULL, 'x' },
         { NULL, 0, NULL, 0 },
     };
     char ch;
 
-    while ((ch = getopt_long(argc, argv, "dvi:b:a:t:", longopts, NULL)) != -1)
+    while ((ch = getopt_long(argc, argv, "dvi:b:a:t:x:", longopts, NULL)) != -1)
     {
         switch (ch) {
         case 'd':
@@ -531,6 +599,9 @@ int main(int argc, char *argv[]) {
             break;
         case 't':
             timeout = atoi(optarg);
+            break;
+        case 'x':
+            developer_path = optarg;
             break;
         default:
             usage(argv[0]);

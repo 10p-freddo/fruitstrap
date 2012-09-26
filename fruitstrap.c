@@ -125,7 +125,6 @@ CFStringRef copy_device_support_path(AMDeviceRef device) {
     CFStringRef build = AMDeviceCopyValue(device, 0, CFSTR("BuildVersion"));
     CFStringRef path = NULL;
 
-    // Try using xcode-select --print-path
     if (path == NULL) {
     	path = copy_xcode_path_for(CFStringCreateWithFormat(NULL, NULL, CFSTR("Platforms/iPhoneOS.platform/DeviceSupport/%@ (%@)"), CFStringCreateWithSubstring(NULL, version, CFRangeMake(0,3)), build));
 	}
@@ -153,7 +152,6 @@ CFStringRef copy_developer_disk_image_path(AMDeviceRef device) {
     CFStringRef build = AMDeviceCopyValue(device, 0, CFSTR("BuildVersion"));
     CFStringRef path = NULL;
 
-    // Try using xcode-select --print-path
     if (path == NULL) {
     	path = copy_xcode_path_for(CFStringCreateWithFormat(NULL, NULL, CFSTR("Platforms/iPhoneOS.platform/DeviceSupport/%@ (%@)/DeveloperDiskImage.dmg"), CFStringCreateWithSubstring(NULL, version, CFRangeMake(0,3)), build));
 	}

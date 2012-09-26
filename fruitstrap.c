@@ -12,7 +12,7 @@
 
 #define FDVENDOR_PATH  "/tmp/fruitstrap-remote-debugserver"
 #define PREP_CMDS_PATH "/tmp/fruitstrap-gdb-prep-cmds"
-#define GDB_SHELL      "`xcode-select -print-path`/Platforms/iPhoneOS.platform/Developer/usr/libexec/gdb/gdb-arm-apple-darwin --arch armv7f -i mi -q -x " PREP_CMDS_PATH
+#define GDB_SHELL      "--arch armv7f -i mi -q -x " PREP_CMDS_PATH
 
 // approximation of what Xcode does:
 #define GDB_PREP_CMDS CFSTR("set mi-show-protections off\n\
@@ -51,6 +51,7 @@ bool found_device = false, debug = false, verbose = false, unbuffered = false;
 char *app_path = NULL;
 char *device_id = NULL;
 char *args = NULL;
+char *developer_path = NULL;
 int timeout = 0;
 CFStringRef last_path = NULL;
 service_conn_t gdbfd;
@@ -88,67 +89,59 @@ CFStringRef copy_xcode_dev_path() {
 	return CFStringCreateWithCString(NULL, buffer, kCFStringEncodingUTF8);
 }
 
-
-const char *get_home() {
-    const char* home = getenv("HOME");
-    if (!home) {
-        struct passwd *pwd = getpwuid(getuid());
-        home = pwd->pw_dir;
+CFStringRef copy_xcode_path_for(CFStringRef search) {
+    CFStringRef xcodeDevPath = copy_xcode_dev_path();
+    CFStringRef path;
+    bool found = false;
+    
+    // Try user specified path first if available
+    if (developer_path && !found) {
+   		path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%s/%@"), developer_path, search);
+		found = path_exists(path);
     }
-    return home;
+    // Try using xcode-select --print-path
+    if (!found) {
+		path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@/%@"), xcodeDevPath, search);
+		found = path_exists(path);
+	}
+	// If not look in the default xcode location (xcode-select is sometimes wrong)
+    if (!found) {
+		path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Applications/Xcode.app/Contents/Developer/%@"), search);
+		found = path_exists(path);
+	}
+	
+	CFRelease(xcodeDevPath);
+
+    if (found) {
+    	return path;
+    } else {
+    	CFRelease(path);
+    	return NULL;
+    }
 }
 
 CFStringRef copy_device_support_path(AMDeviceRef device) {
     CFStringRef version = AMDeviceCopyValue(device, 0, CFSTR("ProductVersion"));
     CFStringRef build = AMDeviceCopyValue(device, 0, CFSTR("BuildVersion"));
-    const char* home = get_home();
-    CFStringRef path;
-    bool found = false;
-    
-    CFStringRef xcodeDevPath = copy_xcode_dev_path();
+    CFStringRef path = NULL;
 
-    found = false;
     // Try using xcode-select --print-path
-    if (!found)
-	{
-		path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@/Platforms/iPhoneOS.platform/DeviceSupport/%@ (%@)"), xcodeDevPath, CFStringCreateWithSubstring(NULL, version, CFRangeMake(0,3)), build);
-		found = path_exists(path);
+    if (path == NULL) {
+    	path = copy_xcode_path_for(CFStringCreateWithFormat(NULL, NULL, CFSTR("Platforms/iPhoneOS.platform/DeviceSupport/%@ (%@)"), CFStringCreateWithSubstring(NULL, version, CFRangeMake(0,3)), build));
 	}
-	if (!found)
-	{
-		path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@/Platforms/iPhoneOS.platform/DeviceSupport/%@"), xcodeDevPath, CFStringCreateWithSubstring(NULL, version, CFRangeMake(0,3)));
-		found = path_exists(path);
+	if (path == NULL) {
+    	path = copy_xcode_path_for(CFStringCreateWithFormat(NULL, NULL, CFSTR("Platforms/iPhoneOS.platform/DeviceSupport/%@"), CFStringCreateWithSubstring(NULL, version, CFRangeMake(0,3))));
 	}
-	if (!found)
-	{
-		path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@/Platforms/iPhoneOS.platform/DeviceSupport/Latest"), xcodeDevPath);
-		found = path_exists(path);
+	if (path == NULL) {
+    	path = copy_xcode_path_for(CFSTR("Platforms/iPhoneOS.platform/DeviceSupport/Latest"));
 	}
-	// If not look in the default xcode location (xcode-select is sometimes wrong)
-    if (!found)
-	{
-		path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Applications/Xcode.app/Contents/Developer/Platforms/Platforms/iPhoneOS.platform/DeviceSupport/%@ (%@)"), CFStringCreateWithSubstring(NULL, version, CFRangeMake(0,3)), build);
-		found = path_exists(path);
-	}
-	if (!found)
-	{
-		path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Applications/Xcode.app/Contents/Developer/Platforms/Platforms/iPhoneOS.platform/DeviceSupport/%@"), CFStringCreateWithSubstring(NULL, version, CFRangeMake(0,3)));
-		found = path_exists(path);
-	}
-	if (!found)
-	{
-		path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Applications/Xcode.app/Contents/Developer/Platforms/Platforms/iPhoneOS.platform/DeviceSupport/Latest"));
-		found = path_exists(path);
-	}
-
-	CFRelease(xcodeDevPath);
+	
     CFRelease(version);
     CFRelease(build);
 
-    if (!found)
+    if (path == NULL)
     {
-        CFRelease(path);
-        printf("[ !! ] Unable to locate DeviceSupport directory.\n");
+        printf("[ !! ] Unable to locate DeviceSupport directory.\n[ !! ] This probably means you don't have Xcode installed, you will need to launch the app manually and logging output will not be shown!\n");
         exit(1);
     }
 
@@ -158,51 +151,25 @@ CFStringRef copy_device_support_path(AMDeviceRef device) {
 CFStringRef copy_developer_disk_image_path(AMDeviceRef device) {
     CFStringRef version = AMDeviceCopyValue(device, 0, CFSTR("ProductVersion"));
     CFStringRef build = AMDeviceCopyValue(device, 0, CFSTR("BuildVersion"));
-    const char* home = get_home();
-    CFStringRef path;
-    bool found = false;
-    
-    CFStringRef xcodeDevPath = copy_xcode_dev_path();
+    CFStringRef path = NULL;
 
-    found = false;
-    if (!found)
-	{
-		path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@/Platforms/iPhoneOS.platform/DeviceSupport/%@ (%@)/DeveloperDiskImage.dmg"), xcodeDevPath, CFStringCreateWithSubstring(NULL, version, CFRangeMake(0,3)), build);
-		found = path_exists(path);
+    // Try using xcode-select --print-path
+    if (path == NULL) {
+    	path = copy_xcode_path_for(CFStringCreateWithFormat(NULL, NULL, CFSTR("Platforms/iPhoneOS.platform/DeviceSupport/%@ (%@)/DeveloperDiskImage.dmg"), CFStringCreateWithSubstring(NULL, version, CFRangeMake(0,3)), build));
 	}
-	if (!found)
-	{
-		path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@/Platforms/iPhoneOS.platform/DeviceSupport/%@/DeveloperDiskImage.dmg"), xcodeDevPath, CFStringCreateWithSubstring(NULL, version, CFRangeMake(0,3)));
-		found = path_exists(path);
+	if (path == NULL) {
+    	path = copy_xcode_path_for(CFStringCreateWithFormat(NULL, NULL, CFSTR("Platforms/iPhoneOS.platform/DeviceSupport/%@/DeveloperDiskImage.dmg"), CFStringCreateWithSubstring(NULL, version, CFRangeMake(0,3))));
 	}
-	if (!found)
-	{
-		path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@/Platforms/iPhoneOS.platform/DeviceSupport/Latest/DeveloperDiskImage.dmg"), xcodeDevPath);
-		found = path_exists(path);
+	if (path == NULL) {
+    	path = copy_xcode_path_for(CFSTR("Platforms/iPhoneOS.platform/DeviceSupport/Latest/DeveloperDiskImage.dmg"));
 	}
-    if (!found)
-	{
-		path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/DeviceSupport/%@ (%@)/DeveloperDiskImage.dmg"), CFStringCreateWithSubstring(NULL, version, CFRangeMake(0,3)), build);
-		found = path_exists(path);
-	}
-	if (!found)
-	{
-		path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/DeviceSupport/%@/DeveloperDiskImage.dmg"), CFStringCreateWithSubstring(NULL, version, CFRangeMake(0,3)));
-		found = path_exists(path);
-	}
-	if (!found)
-	{
-		path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/DeviceSupport/Latest/DeveloperDiskImage.dmg"));
-		found = path_exists(path);
-	}
-
-	CFRelease(xcodeDevPath);
+	
     CFRelease(version);
     CFRelease(build);
 
-    if (!found) {
-        CFRelease(path);
-        printf("[ !! ] Unable to locate DeviceSupport directory containing DeveloperDiskImage.dmg.\n[ !! ] This probably means you don't have Xcode installed, you will need to launch the app manually and logging output will not be shown!\n");
+    if (path == NULL)
+    {
+        printf("[ !! ] Unable to locate DeviceSupport directory.\n[ !! ] This probably means you don't have Xcode installed, you will need to launch the app manually and logging output will not be shown!\n");
         exit(1);
     }
 
@@ -535,7 +502,18 @@ void handle_device(AMDeviceRef device) {
     pid_t parent = getpid();
     int pid = fork();
     if (pid == 0) {
-        system(GDB_SHELL);      // launch gdb
+    	CFStringRef path = copy_xcode_path_for(CFSTR("Platforms/iPhoneOS.platform/Developer/usr/libexec/gdb/gdb-arm-apple-darwin"));
+    	if (path == NULL) {
+    		 printf("[ !! ] Unable to locate GDB.\n");
+    		 exit(1);
+    	} else {
+    		CFStringRef gdb_cmd = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@ %@"), path, CFSTR(GDB_SHELL));
+ 
+    		// Convert CFStringRef to char* for system call
+    		const char *char_gdb_cmd = CFStringGetCStringPtr(gdb_cmd, kCFStringEncodingMacRoman);
+
+	    	system(char_gdb_cmd);      // launch gdb
+	    }
         kill(parent, SIGHUP);  // "No. I am your father."
         _exit(0);
     }
@@ -563,7 +541,7 @@ void timeout_callback(CFRunLoopTimerRef timer, void *info) {
 }
 
 void usage(const char* app) {
-    printf("usage: %s [-d/--debug] [-i/--id device_id] -b/--bundle bundle.app [-a/--args arguments] [-t/--timeout timeout(seconds)] [-u/--unbuffered]\n", app);
+    printf("usage: %s [-d/--debug] [-i/--id device_id] -b/--bundle bundle.app [-a/--args arguments] [-t/--timeout timeout(seconds)] [-u/--unbuffered] [-x path to Xcode's Developer directory]\n", app);
 }
 
 int main(int argc, char *argv[]) {
@@ -575,11 +553,12 @@ int main(int argc, char *argv[]) {
         { "verbose", no_argument, NULL, 'v' },
         { "timeout", required_argument, NULL, 't' },
         { "unbuffered", no_argument, NULL, 'u' },
+        { "xcode", required_argument, NULL, 'x' },
         { NULL, 0, NULL, 0 },
     };
     char ch;
 
-    while ((ch = getopt_long(argc, argv, "dvi:b:a:t:u", longopts, NULL)) != -1)
+    while ((ch = getopt_long(argc, argv, "dvi:b:a:t:u:x:", longopts, NULL)) != -1)
     {
         switch (ch) {
         case 'd':
@@ -602,6 +581,9 @@ int main(int argc, char *argv[]) {
             break;
         case 'u':
             unbuffered = 1;
+            break;
+        case 'x':
+            developer_path = optarg;
             break;
         default:
             usage(argv[0]);

@@ -70,53 +70,88 @@ Boolean path_exists(CFTypeRef path) {
     }
 }
 
+CFStringRef copy_long_shot_disk_image_path() {
+    FILE *fpipe = NULL;
+    char *command = "find `xcode-select --print-path` -name DeveloperDiskImage.dmg | tail -n 1";
+
+    if (!(fpipe = (FILE *)popen(command, "r")))
+    {
+        perror("Error encountered while opening pipe");
+        exit(EXIT_FAILURE);
+    }
+
+    char buffer[256] = { '\0' };
+
+    fgets(buffer, sizeof(buffer), fpipe);
+    pclose(fpipe);
+
+    strtok(buffer, "\n");
+    return CFStringCreateWithCString(NULL, buffer, kCFStringEncodingUTF8);
+}
+
 CFStringRef copy_xcode_dev_path() {
-	FILE *fpipe = NULL;
-	char *command = "xcode-select -print-path";
+    FILE *fpipe = NULL;
+    char *command = "xcode-select -print-path";
 
-	if (!(fpipe = (FILE *)popen(command, "r")))
-	{
-		perror("Error encountered while opening pipe");
-		exit(EXIT_FAILURE);
-	}
+    if (!(fpipe = (FILE *)popen(command, "r")))
+    {
+        perror("Error encountered while opening pipe");
+        exit(EXIT_FAILURE);
+    }
 
-	char buffer[256] = { '\0' };
+    char buffer[256] = { '\0' };
 
-	fgets(buffer, sizeof(buffer), fpipe);
-	pclose(fpipe);
+    fgets(buffer, sizeof(buffer), fpipe);
+    pclose(fpipe);
 
-	strtok(buffer, "\n");
-	return CFStringCreateWithCString(NULL, buffer, kCFStringEncodingUTF8);
+    strtok(buffer, "\n");
+    return CFStringCreateWithCString(NULL, buffer, kCFStringEncodingUTF8);
+}
+
+const char *get_home() {
+    const char* home = getenv("HOME");
+    if (!home) {
+        struct passwd *pwd = getpwuid(getuid());
+        home = pwd->pw_dir;
+    }
+    return home;
 }
 
 CFStringRef copy_xcode_path_for(CFStringRef search) {
     CFStringRef xcodeDevPath = copy_xcode_dev_path();
     CFStringRef path;
     bool found = false;
+    const char* home = get_home();
+
     
     // Try user specified path first if available
     if (developer_path && !found) {
-   		path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%s/%@"), developer_path, search);
-		found = path_exists(path);
+           path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%s/%@"), developer_path, search);
+        found = path_exists(path);
     }
     // Try using xcode-select --print-path
     if (!found) {
-		path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@/%@"), xcodeDevPath, search);
-		found = path_exists(path);
-	}
-	// If not look in the default xcode location (xcode-select is sometimes wrong)
+        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@/%@"), xcodeDevPath, search);
+        found = path_exists(path);
+    }
+    // If not look in the default xcode location (xcode-select is sometimes wrong)
     if (!found) {
-		path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Applications/Xcode.app/Contents/Developer/%@"), search);
-		found = path_exists(path);
-	}
-	
-	CFRelease(xcodeDevPath);
+        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Applications/Xcode.app/Contents/Developer/%@"), search);
+        found = path_exists(path);
+    }
+    // If not look in the users home directory, Xcode can store device support stuff there
+    if (!found) {
+        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%s/Library/Developer/Xcode/%@"), home, search);
+        found = path_exists(path);
+    }
+    
+    CFRelease(xcodeDevPath);
 
     if (found) {
-    	return path;
+        return path;
     } else {
-    	CFRelease(path);
-    	return NULL;
+        CFRelease(path);
+        return NULL;
     }
 }
 
@@ -126,15 +161,18 @@ CFStringRef copy_device_support_path(AMDeviceRef device) {
     CFStringRef path = NULL;
 
     if (path == NULL) {
-    	path = copy_xcode_path_for(CFStringCreateWithFormat(NULL, NULL, CFSTR("Platforms/iPhoneOS.platform/DeviceSupport/%@ (%@)"), CFStringCreateWithSubstring(NULL, version, CFRangeMake(0,3)), build));
-	}
-	if (path == NULL) {
-    	path = copy_xcode_path_for(CFStringCreateWithFormat(NULL, NULL, CFSTR("Platforms/iPhoneOS.platform/DeviceSupport/%@"), CFStringCreateWithSubstring(NULL, version, CFRangeMake(0,3))));
-	}
-	if (path == NULL) {
-    	path = copy_xcode_path_for(CFSTR("Platforms/iPhoneOS.platform/DeviceSupport/Latest"));
-	}
-	
+        path = copy_xcode_path_for(CFStringCreateWithFormat(NULL, NULL, CFSTR("iOS DeviceSupport/%@ (%@)"), version, build));
+    }
+    if (path == NULL) {
+        path = copy_xcode_path_for(CFStringCreateWithFormat(NULL, NULL, CFSTR("Platforms/iPhoneOS.platform/DeviceSupport/%@ (%@)"), version, build));
+    }
+    if (path == NULL) {
+        path = copy_xcode_path_for(CFStringCreateWithFormat(NULL, NULL, CFSTR("Platforms/iPhoneOS.platform/DeviceSupport/%@"), version));
+    }
+    if (path == NULL) {
+        path = copy_xcode_path_for(CFSTR("Platforms/iPhoneOS.platform/DeviceSupport/Latest"));
+    }
+    
     CFRelease(version);
     CFRelease(build);
 
@@ -153,21 +191,29 @@ CFStringRef copy_developer_disk_image_path(AMDeviceRef device) {
     CFStringRef path = NULL;
 
     if (path == NULL) {
-    	path = copy_xcode_path_for(CFStringCreateWithFormat(NULL, NULL, CFSTR("Platforms/iPhoneOS.platform/DeviceSupport/%@ (%@)/DeveloperDiskImage.dmg"), CFStringCreateWithSubstring(NULL, version, CFRangeMake(0,3)), build));
-	}
-	if (path == NULL) {
-    	path = copy_xcode_path_for(CFStringCreateWithFormat(NULL, NULL, CFSTR("Platforms/iPhoneOS.platform/DeviceSupport/%@/DeveloperDiskImage.dmg"), CFStringCreateWithSubstring(NULL, version, CFRangeMake(0,3))));
-	}
-	if (path == NULL) {
-    	path = copy_xcode_path_for(CFSTR("Platforms/iPhoneOS.platform/DeviceSupport/Latest/DeveloperDiskImage.dmg"));
-	}
-	
+        path = copy_xcode_path_for(CFStringCreateWithFormat(NULL, NULL, CFSTR("Platforms/iPhoneOS.platform/DeviceSupport/%@ (%@)/DeveloperDiskImage.dmg"), version, build));
+    }
+    if (path == NULL) {
+        path = copy_xcode_path_for(CFStringCreateWithFormat(NULL, NULL, CFSTR("Platforms/iPhoneOS.platform/DeviceSupport/%@/DeveloperDiskImage.dmg"), version));
+    }
+    if (path == NULL) {
+        path = copy_xcode_path_for(CFSTR("Platforms/iPhoneOS.platform/DeviceSupport/Latest/DeveloperDiskImage.dmg"));
+    }
+    
     CFRelease(version);
     CFRelease(build);
+    
+    if (path == NULL) {
+        // Sometimes Latest seems to be missing in Xcode, in that case use find and hope for the best
+        path = copy_long_shot_disk_image_path();
+        if (CFStringGetLength(path) < 5) {
+            path = NULL;
+        }
+    }
 
     if (path == NULL)
     {
-        printf("[ !! ] Unable to locate DeviceSupport directory.\n[ !! ] This probably means you don't have Xcode installed, you will need to launch the app manually and logging output will not be shown!\n");
+        printf("[ !! ] Unable to locate DeveloperDiskImage.dmg.\n[ !! ] This probably means you don't have Xcode installed, you will need to launch the app manually and logging output will not be shown!\n");
         exit(1);
     }
 
@@ -407,7 +453,7 @@ void killed(int signum) {
 
 void gdb_ready_handler(int signum)
 {
-	_exit(0);
+    _exit(0);
 }
 
 void handle_device(AMDeviceRef device) {
@@ -500,18 +546,18 @@ void handle_device(AMDeviceRef device) {
     pid_t parent = getpid();
     int pid = fork();
     if (pid == 0) {
-    	CFStringRef path = copy_xcode_path_for(CFSTR("Platforms/iPhoneOS.platform/Developer/usr/libexec/gdb/gdb-arm-apple-darwin"));
-    	if (path == NULL) {
-    		 printf("[ !! ] Unable to locate GDB.\n");
-    		 exit(1);
-    	} else {
-    		CFStringRef gdb_cmd = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@ %@"), path, CFSTR(GDB_SHELL));
+        CFStringRef path = copy_xcode_path_for(CFSTR("Platforms/iPhoneOS.platform/Developer/usr/libexec/gdb/gdb-arm-apple-darwin"));
+        if (path == NULL) {
+             printf("[ !! ] Unable to locate GDB.\n");
+             exit(1);
+        } else {
+            CFStringRef gdb_cmd = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@ %@"), path, CFSTR(GDB_SHELL));
  
-    		// Convert CFStringRef to char* for system call
-    		const char *char_gdb_cmd = CFStringGetCStringPtr(gdb_cmd, kCFStringEncodingMacRoman);
+            // Convert CFStringRef to char* for system call
+            const char *char_gdb_cmd = CFStringGetCStringPtr(gdb_cmd, kCFStringEncodingMacRoman);
 
-	    	system(char_gdb_cmd);      // launch gdb
-	    }
+            system(char_gdb_cmd);      // launch gdb
+        }
         kill(parent, SIGHUP);  // "No. I am your father."
         _exit(0);
     }

@@ -273,7 +273,7 @@ void mount_developer_image(AMDeviceRef device) {
     CFRelease(options);
 }
 
-void transfer_callback(CFDictionaryRef dict, int arg) {
+mach_error_t transfer_callback(CFDictionaryRef dict, int arg) {
     int percent;
     CFStringRef status = CFDictionaryGetValue(dict, CFSTR("Status"));
     CFNumberGetValue(CFDictionaryGetValue(dict, CFSTR("PercentComplete")), kCFNumberSInt32Type, &percent);
@@ -290,14 +290,17 @@ void transfer_callback(CFDictionaryRef dict, int arg) {
         }
         last_path = CFStringCreateCopy(NULL, path);
     }
+
+    return 0;
 }
 
-void install_callback(CFDictionaryRef dict, int arg) {
+mach_error_t install_callback(CFDictionaryRef dict, int arg) {
     int percent;
     CFStringRef status = CFDictionaryGetValue(dict, CFSTR("Status"));
     CFNumberGetValue(CFDictionaryGetValue(dict, CFSTR("PercentComplete")), kCFNumberSInt32Type, &percent);
 
     printf("[%3d%%] %s\n", (percent / 2) + 50, CFStringGetCStringPtr(status, kCFStringEncodingMacRoman));
+    return 0;
 }
 
 void fdvendor_callback(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef address, const void *data, void *info) {
@@ -486,7 +489,7 @@ void handle_device(AMDeviceRef device) {
 
     CFRelease(relative_url);
 
-    int afcFd;
+    service_conn_t afcFd;
     assert(AMDeviceStartService(device, CFSTR("com.apple.afc"), &afcFd, NULL) == 0);
     assert(AMDeviceStopSession(device) == 0);
     assert(AMDeviceDisconnect(device) == 0);
@@ -503,7 +506,7 @@ void handle_device(AMDeviceRef device) {
     assert(AMDeviceValidatePairing(device) == 0);
     assert(AMDeviceStartSession(device) == 0);
 
-    int installFd;
+    service_conn_t installFd;
     assert(AMDeviceStartService(device, CFSTR("com.apple.mobile.installation_proxy"), &installFd, NULL) == 0);
 
     assert(AMDeviceStopSession(device) == 0);

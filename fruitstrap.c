@@ -12,7 +12,7 @@
 
 #define FDVENDOR_PATH  "/tmp/fruitstrap-remote-debugserver"
 #define PREP_CMDS_PATH "/tmp/fruitstrap-gdb-prep-cmds"
-#define GDB_SHELL      "--arch armv7f -i mi -q -x " PREP_CMDS_PATH
+#define GDB_SHELL      "--arch armv7f -x " PREP_CMDS_PATH
 
 // approximation of what Xcode does:
 #define GDB_PREP_CMDS CFSTR("set mi-show-protections off\n\
@@ -51,6 +51,7 @@ bool found_device = false, debug = false, verbose = false, unbuffered = false;
 char *app_path = NULL;
 char *device_id = NULL;
 char *args = NULL;
+char *gdb_args = "";
 int timeout = 0;
 CFStringRef last_path = NULL;
 service_conn_t gdbfd;
@@ -548,7 +549,7 @@ void handle_device(AMDeviceRef device) {
              printf("[ !! ] Unable to locate GDB.\n");
              exit(1);
         } else {
-            CFStringRef gdb_cmd = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@ %@"), path, CFSTR(GDB_SHELL));
+            CFStringRef gdb_cmd = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@ %@ %s"), path, CFSTR(GDB_SHELL), gdb_args);
  
             // Convert CFStringRef to char* for system call
             const char *char_gdb_cmd = CFStringGetCStringPtr(gdb_cmd, kCFStringEncodingMacRoman);
@@ -594,12 +595,12 @@ int main(int argc, char *argv[]) {
         { "verbose", no_argument, NULL, 'v' },
         { "timeout", required_argument, NULL, 't' },
         { "unbuffered", no_argument, NULL, 'u' },
-        { "xcode", required_argument, NULL, 'x' },
+        { "gbdbargs", required_argument, NULL, 'g' },
         { NULL, 0, NULL, 0 },
     };
     char ch;
 
-    while ((ch = getopt_long(argc, argv, "dvi:b:a:t:u:", longopts, NULL)) != -1)
+    while ((ch = getopt_long(argc, argv, "dvi:b:a:t:u:g:", longopts, NULL)) != -1)
     {
         switch (ch) {
         case 'd':
@@ -622,6 +623,9 @@ int main(int argc, char *argv[]) {
             break;
         case 'u':
             unbuffered = 1;
+            break;
+        case 'g':
+            gdb_args = optarg;
             break;
         default:
             usage(argv[0]);

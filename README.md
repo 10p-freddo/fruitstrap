@@ -10,11 +10,10 @@ Install and debug iPhone apps without using Xcode. Designed to work on unjailbro
 
 ## Usage
 
-* `fruitstrap [-d/--debug] [-i/--id device_id] -b/--bundle <app> [-a/--args arguments] [-t/--timeout timeout(seconds)] [-u/--unbuffered] [-x/--xcode xcode-path]`
+* `fruitstrap [-d/--debug] [-i/--id device_id] -b/--bundle <app> [-a/--args arguments] [-t/--timeout timeout(seconds)] [-u/--unbuffered]`
 * Optional `-d` flag launches a remote GDB session after the app has been installed.
 * `<app>` must be an iPhone application bundle, *not* an IPA.
 * Optional device id, useful when you have more than one iPhone/iPad connected to your computer
-* Optional path to Xcode.  Passing "-x `xcode-select -print-path`" should probably do the right thing.
 
 ## Demo
 

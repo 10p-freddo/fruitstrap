@@ -51,7 +51,6 @@ bool found_device = false, debug = false, verbose = false, unbuffered = false;
 char *app_path = NULL;
 char *device_id = NULL;
 char *args = NULL;
-char *developer_path = NULL;
 int timeout = 0;
 CFStringRef last_path = NULL;
 service_conn_t gdbfd;
@@ -124,11 +123,6 @@ CFStringRef copy_xcode_path_for(CFStringRef search) {
     const char* home = get_home();
 
     
-    // Try user specified path first if available
-    if (developer_path && !found) {
-           path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%s/%@"), developer_path, search);
-        found = path_exists(path);
-    }
     // Try using xcode-select --print-path
     if (!found) {
         path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@/%@"), xcodeDevPath, search);
@@ -588,7 +582,7 @@ void timeout_callback(CFRunLoopTimerRef timer, void *info) {
 }
 
 void usage(const char* app) {
-    printf("usage: %s [-d/--debug] [-i/--id device_id] -b/--bundle bundle.app [-a/--args arguments] [-t/--timeout timeout(seconds)] [-u/--unbuffered] [-x path to Xcode's Developer directory]\n", app);
+    printf("usage: %s [-d/--debug] [-i/--id device_id] -b/--bundle bundle.app [-a/--args arguments] [-t/--timeout timeout(seconds)] [-u/--unbuffered]\n", app);
 }
 
 int main(int argc, char *argv[]) {
@@ -605,7 +599,7 @@ int main(int argc, char *argv[]) {
     };
     char ch;
 
-    while ((ch = getopt_long(argc, argv, "dvi:b:a:t:u:x:", longopts, NULL)) != -1)
+    while ((ch = getopt_long(argc, argv, "dvi:b:a:t:u:", longopts, NULL)) != -1)
     {
         switch (ch) {
         case 'd':
@@ -628,9 +622,6 @@ int main(int argc, char *argv[]) {
             break;
         case 'u':
             unbuffered = 1;
-            break;
-        case 'x':
-            developer_path = optarg;
             break;
         default:
             usage(argv[0]);

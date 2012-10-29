@@ -17,6 +17,9 @@ demo: demo.c
 fruitstrap: fruitstrap.c
 	clang -o fruitstrap -mmacosx-version-min=$(OSX_MIN) -framework CoreFoundation -framework MobileDevice -F/System/Library/PrivateFrameworks fruitstrap.c
 
+listdevices: listdevices.c
+	gcc -g -o listdevices -framework CoreFoundation -framework MobileDevice -F/System/Library/PrivateFrameworks listdevices.c
+
 install: all
 	./fruitstrap -b demo.app
 

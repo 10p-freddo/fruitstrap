@@ -1,0 +1,9 @@
+{
+    "name":"fruitstrap",
+    "version":"0.0.3",
+    "author":"Grant Hughes <http://github.com/ghughes>",
+    "main":"fruitstrap",
+    "scripts":{
+        "install":"make fruitstrap && make listdevices"
+    }
+}

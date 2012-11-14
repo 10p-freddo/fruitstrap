@@ -8,6 +8,10 @@ Install and debug iPhone apps without using Xcode. Designed to work on unjailbro
 * You need to have a valid iPhone development certificate installed (or at least a correctly signed iOS app).
 * Xcode must be installed, along with the SDK for your iOS version.
 
+## Install
+
+* `make install_os` will compile and install fruitstrap to /usr/local/bin
+
 ## Usage
 
 * `fruitstrap [-d/--debug] [-i/--id device_id] -b/--bundle <app> [-a/--args arguments] [-t/--timeout timeout(seconds)] [-u/--unbuffered] [-g/--gdbargs gdb_arguments]`

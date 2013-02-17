@@ -1,5 +1,5 @@
 #!/usr/bin/python
-#vim:ts=4 sts=4 sw=4 expandtab
+# vim:ts=4 sts=4 sw=4 expandtab
 
 """apple.py
 
@@ -63,7 +63,10 @@ import time
 
 # CoreFoundation.framework
 
-CoreFoundation = ctypes.CDLL('/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation')
+if sys.platform == 'win32':
+    CoreFoundation = ctypes.CDLL('CoreFoundation.dll')
+else:
+    CoreFoundation = ctypes.CDLL('/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation')
 
 CFShow = CoreFoundation.CFShow
 CFShow.argtypes = [ctypes.c_void_p]
@@ -225,7 +228,10 @@ def CFToPython(dataRef):
 
 # MobileDevice.Framework
 
-MobileDevice = ctypes.CDLL('/System/Library/PrivateFrameworks/MobileDevice.framework/MobileDevice')
+if sys.platform == 'win32':
+    MobileDevice = ctypes.CDLL('MobileDevice.dll')
+else:
+    MobileDevice = ctypes.CDLL('/System/Library/PrivateFrameworks/MobileDevice.framework/MobileDevice')
 
 AMDSetLogLevel = MobileDevice.AMDSetLogLevel
 AMDSetLogLevel.argtypes = [ctypes.c_int]
@@ -281,14 +287,6 @@ AMDeviceCopyDeviceIdentifier = MobileDevice.AMDeviceCopyDeviceIdentifier
 AMDeviceCopyDeviceIdentifier.argtypes = [am_device_p]
 AMDeviceCopyDeviceIdentifier.restype = CFStringRef
 
-AMDeviceRetain = MobileDevice.AMDeviceRetain
-AMDeviceRetain.argtypes = [am_device_p]
-AMDeviceRetain.restype = ctypes.c_uint
-
-AMDeviceRelease = MobileDevice.AMDeviceRelease
-AMDeviceRelease.argtypes = [am_device_p]
-AMDeviceRelease.restype = ctypes.c_uint
-
 AMDeviceConnect = MobileDevice.AMDeviceConnect
 AMDeviceConnect.argtypes = [am_device_p]
 AMDeviceConnect.restype = ctypes.c_uint
@@ -319,9 +317,13 @@ AMDeviceDisconnect.restype = ctypes.c_uint
 
 am_device_mount_image_callback = ctypes.CFUNCTYPE(ctypes.c_uint, ctypes.c_void_p, ctypes.c_void_p)
 
-AMDeviceMountImage = MobileDevice.AMDeviceMountImage
-AMDeviceMountImage.argtypes = [am_device_p, CFStringRef, CFDictionaryRef, am_device_mount_image_callback, ctypes.c_void_p]
-AMDeviceMountImage.restype = ctypes.c_uint
+try:
+    AMDeviceMountImage = MobileDevice.AMDeviceMountImage
+    AMDeviceMountImage.argtypes = [am_device_p, CFStringRef, CFDictionaryRef, am_device_mount_image_callback, ctypes.c_void_p]
+    AMDeviceMountImage.restype = ctypes.c_uint
+except AttributeError:
+    # AMDeviceMountImage is missing on win32.
+    AMDeviceMountImage = None
 
 AMDeviceStartService = MobileDevice.AMDeviceStartService
 AMDeviceStartService.argtypes = [am_device_p, CFStringRef, ctypes.POINTER(ctypes.c_int), ctypes.c_void_p]
@@ -344,6 +346,72 @@ AMDeviceUninstallApplication.restype = ctypes.c_uint
 AMDeviceLookupApplications = MobileDevice.AMDeviceLookupApplications
 AMDeviceLookupApplications.argtypes = [am_device_p, ctypes.c_uint, ctypes.POINTER(CFDictionaryRef)]
 AMDeviceLookupApplications.restype = ctypes.c_uint
+
+# ws2_32.dll
+
+if sys.platform == 'win32':
+    ws2_32 = ctypes.WinDLL('ws2_32.dll')
+
+    socket_close = ws2_32.closesocket
+    socket_close.argtypes = [ctypes.c_uint]
+    socket_close.restype = ctypes.c_int
+
+    socket_recv = ws2_32.recv
+    socket_recv.argtypes = [ctypes.c_uint, ctypes.c_char_p, ctypes.c_int, ctypes.c_int]
+    socket_recv.restype = ctypes.c_int
+
+    socket_send = ws2_32.send
+    socket_send.argtypes = [ctypes.c_uint, ctypes.c_char_p, ctypes.c_int, ctypes.c_int]
+    socket_send.restype = ctypes.c_int
+
+    socket_setsockopt = ws2_32.setsockopt
+    socket_setsockopt.argtypes = [ctypes.c_uint, ctypes.c_int, ctypes.c_int, ctypes.c_void_p, ctypes.c_int]
+    socket_setsockopt.restype = ctypes.c_int
+
+    SOL_SOCKET = 0xffff
+    SO_SNDTIMEO = 0x1005
+    SO_RCVTIMEO = 0x1006
+
+    class MockSocket(object):
+        """
+        Python doesn't provide a way to get a socket-like object from a socket
+        descriptor, so this implements just enough of the interface for what we
+        need.
+        """
+
+        def __init__(self, socketDescriptor):
+            self._socket = socketDescriptor
+
+        def send(self, data):
+            return socket_send(self._socket, data, len(data), 0)
+
+        def sendall(self, data):
+            while data:
+                result = self.send(data)
+                if result < 0:
+                    raise RuntimeError('Error sending data: %d' % result)
+                data = data[result:]
+
+        def recv(self, bytes):
+            data = ctypes.create_string_buffer(bytes)
+            result = socket_recv(self._socket, data, bytes, 0)
+            if result < 0:
+                raise RuntimeError('Error receiving data: %d' % result)
+            return data.raw[:result]
+
+        def close(self):
+            socket_close(self._socket)
+            self._socket = None
+
+        def settimeout(self, timeout):
+            ms = int(timeout * 1000)
+            value = ctypes.c_int(ms)
+            e = socket_setsockopt(self._socket, SOL_SOCKET, SO_SNDTIMEO, ctypes.byref(value), 4)
+            if e != 0:
+                raise RuntimeError('setsockopt returned %d' % e)
+            e = socket_setsockopt(self._socket, SOL_SOCKET, SO_RCVTIMEO, ctypes.byref(value), 4)
+            if e != 0:
+                raise RuntimeError('setsockopt returned %d' % e)
 
 # Finally, the good stuff.
 
@@ -375,7 +443,6 @@ class MobileDeviceManager(object):
 
     def close(self):
         if self._device:
-            AMDeviceRelease(self._device)
             self._device = None
         if self._notification:
             AMDeviceNotificationUnsubscribe(self._notification)
@@ -546,7 +613,10 @@ class MobileDeviceManager(object):
             raise RuntimeError('%s not found in app list.' % identifier)
 
     def stopService(self, fd):
-        os.close(fd)
+        if sys.platform == 'win32':
+            closesocket(fd)
+        else:
+            os.close(fd)
 
     def showStatus(self, action, dictionary):
         show = ['[%s]' % action]
@@ -566,7 +636,11 @@ class MobileDeviceManager(object):
         print ' '.join(show)
 
     def debugServer(self):
-        return self.startService('com.apple.debugserver')
+        service = self.startService('com.apple.debugserver')
+        if sys.platform == 'win32':
+            return MockSocket(service)
+        else:
+            return socket.fromfd(service, socket.AF_INET, socket.SOCK_STREAM)
 
     def _timer(self, timer, info):
         CFRunLoopStop(CFRunLoopGetCurrent())
@@ -591,7 +665,6 @@ class MobileDeviceManager(object):
         info = info.contents
         if info.msg == ADNCI_MSG_CONNECTED:
             self._device = ctypes.c_void_p(info.dev)
-            AMDeviceRetain(self._device)
             CFRunLoopStop(CFRunLoopGetCurrent())
         elif info.msg == ADNCI_MSG_DISCONNECTED:
             self._device = None
@@ -754,7 +827,7 @@ if __name__ == '__main__':
     parser.add_argument('-i', '--install', action='store_true', help='install an application')
     parser.add_argument('-r', '--run', action='store_true', help='run an application')
     parser.add_argument('-u', '--uninstall', action='store_true', help='uninstall an application')
-    parser.add_argument('-m', '--mount', action='store_true', help='mount developer disk image (must be done at least once to run)')
+    parser.add_argument('-m', '--mount', action='store_true', help='mount developer disk image (must be done at least once to run, not supported on Windows)')
     parser.add_argument('-l', '--list-applications', action='store_true', help='list installed applications')
 
     parser.add_argument('-b', '--bundle', help='path to local app bundle [to install]')
@@ -804,10 +877,9 @@ if __name__ == '__main__':
         if arguments.run:
             executable = mdm.lookupApplicationExecutable(arguments.appid or mdm.bundleId(arguments.bundle))
             db = mdm.debugServer()
-            connection = socket.fromfd(db, socket.AF_INET, socket.SOCK_STREAM)
             if arguments.timeout > 0:
-                connection.settimeout(arguments.timeout)
-            debugger = GdbServer(connection)
+                db.settimeout(arguments.timeout)
+            debugger = GdbServer(db)
             argv = [executable]
             if arguments.arguments:
                 argv += arguments.arguments

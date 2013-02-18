@@ -502,10 +502,18 @@ class MobileDeviceManager(object):
         return self._device
 
     def productVersion(self):
-        return CFStringGetStr(AMDeviceCopyValue(self._device, None, CFStr("ProductVersion")))
+        self.connect()
+        try:
+            return CFStringGetStr(AMDeviceCopyValue(self._device, None, CFStr("ProductVersion")))
+        finally:
+            self.disconnect()
 
     def buildVersion(self):
-        return CFStringGetStr(AMDeviceCopyValue(self._device, None, CFStr("BuildVersion")))
+        self.connect()
+        try:
+            return CFStringGetStr(AMDeviceCopyValue(self._device, None, CFStr("BuildVersion")))
+        finally:
+            self.disconnect()
 
     def connectionId(self):
         return AMDeviceGetConnectionID(self._device)
@@ -514,38 +522,46 @@ class MobileDeviceManager(object):
         return CFStringGetStr(AMDeviceCopyDeviceIdentifier(self._device))
 
     def mountImage(self, imagePath):
-        self.startSession()
+        self.connect()
         try:
-            signature = open(imagePath + '.signature', 'rb').read()
-            signature = CFDataCreate(None, signature, len(signature))
-            items = 2
+            self.startSession()
+            try:
+                signature = open(imagePath + '.signature', 'rb').read()
+                signature = CFDataCreate(None, signature, len(signature))
+                items = 2
 
-            keys = (ctypes.c_void_p * items)(CFStr('ImageSignature'), CFStr('ImageType'))
-            values = (ctypes.c_void_p * items)(signature, CFStr('Developer'))
+                keys = (ctypes.c_void_p * items)(CFStr('ImageSignature'), CFStr('ImageType'))
+                values = (ctypes.c_void_p * items)(signature, CFStr('Developer'))
 
-            options = CFDictionaryCreate(None, keys, values, items, ctypes.byref(kCFTypeDictionaryKeyCallBacks), ctypes.byref(kCFTypeDictionaryValueCallBacks))
-            self._mountCallback = am_device_mount_image_callback(self._mount)
-            e = AMDeviceMountImage(self._device, CFStr(imagePath), options, self._mountCallback, None)
-            if e == 0:
-                return True
-            elif e  == 0xe8000076:
-                # already mounted
-                return False
-            else:
-                raise RuntimeError('AMDeviceMountImage returned %d' % e)
+                options = CFDictionaryCreate(None, keys, values, items, ctypes.byref(kCFTypeDictionaryKeyCallBacks), ctypes.byref(kCFTypeDictionaryValueCallBacks))
+                self._mountCallback = am_device_mount_image_callback(self._mount)
+                e = AMDeviceMountImage(self._device, CFStr(imagePath), options, self._mountCallback, None)
+                if e == 0:
+                    return True
+                elif e  == 0xe8000076:
+                    # already mounted
+                    return False
+                else:
+                    raise RuntimeError('AMDeviceMountImage returned %d' % e)
+            finally:
+                self.stopSession()
         finally:
-            self.stopSession()
+            self.disconnect()
 
     def startService(self, service):
-        mdm.startSession()
+        self.connect()
         try:
-            fd = ctypes.c_int()
-            e = AMDeviceStartService(self._device, CFStr(service), ctypes.byref(fd), None)
-            if e != 0:
-                raise RuntimeError('AMDeviceStartService returned %d' % e)
-            return fd.value
+            self.startSession()
+            try:
+                fd = ctypes.c_int()
+                e = AMDeviceStartService(self._device, CFStr(service), ctypes.byref(fd), None)
+                if e != 0:
+                    raise RuntimeError('AMDeviceStartService returned %d' % e)
+                return fd.value
+            finally:
+                self.stopSession()
         finally:
-            mdm.stopSession()
+            self.disconnect()
 
     def bundleId(self, path):
         plist = plistlib.readPlist(os.path.join(path, 'Info.plist'))
@@ -556,9 +572,8 @@ class MobileDeviceManager(object):
         return plist['CFBundleExecutable']
 
     def transferApplication(self, path):
-        afc = None
+        afc = self.startService("com.apple.afc")
         try:
-            afc = self.startService("com.apple.afc")
             e = AMDeviceTransferApplication(afc, CFStr(os.path.abspath(path)), None, self._transferCallback, None)
             if e != 0:
                 raise RuntimeError('AMDeviceTransferApplication returned %d' % e)
@@ -566,9 +581,8 @@ class MobileDeviceManager(object):
             self.stopService(afc)
 
     def installApplication(self, path):
-        afc = None
+        afc = mdm.startService("com.apple.mobile.installation_proxy")
         try:
-            afc = mdm.startService("com.apple.mobile.installation_proxy")
 
             items = 1
             keys = (ctypes.c_void_p * items)(CFStr('PackageType'))
@@ -583,9 +597,8 @@ class MobileDeviceManager(object):
             mdm.stopService(afc)
 
     def uninstallApplication(self, bundleId):
-        afc = None
+        afc = self.startService("com.apple.mobile.installation_proxy")
         try:
-            afc = self.startService("com.apple.mobile.installation_proxy")
             e = AMDeviceUninstallApplication(afc, CFStr(bundleId), None, self._uninstallCallback, None)
             if e != 0:
                 raise RuntimeError('AMDeviceUninstallApplication returned %d' % e)
@@ -595,15 +608,19 @@ class MobileDeviceManager(object):
         items = 1
 
     def lookupApplications(self):
-        self.startSession()
+        self.connect()
         try:
-            dictionary = CFDictionaryRef()
-            e = AMDeviceLookupApplications(self._device, 0, ctypes.byref(dictionary))
-            if e != 0:
-                raise RuntimeError('AMDeviceLookupApplications returned %d' % e)
-            return CFDictionaryToDict(dictionary)
+            self.startSession()
+            try:
+                dictionary = CFDictionaryRef()
+                e = AMDeviceLookupApplications(self._device, 0, ctypes.byref(dictionary))
+                if e != 0:
+                    raise RuntimeError('AMDeviceLookupApplications returned %d' % e)
+                return CFDictionaryToDict(dictionary)
+            finally:
+                self.stopSession()
         finally:
-            self.stopSession()
+            self.disconnect()
 
     def lookupApplicationExecutable(self, identifier):
         dictionary = self.lookupApplications()
@@ -849,47 +866,43 @@ if __name__ == '__main__':
 
     print 'Connected to device with UDID:', mdm.deviceId()
 
-    mdm.connect()
-    try:
-        if arguments.uninstall:
-            bundle = arguments.appid or mdm.bundleId(arguments.bundle)
-            print '\nUninstalling %s...' % bundle
-            mdm.uninstallApplication(bundle)
+    if arguments.uninstall:
+        bundle = arguments.appid or mdm.bundleId(arguments.bundle)
+        print '\nUninstalling %s...' % bundle
+        mdm.uninstallApplication(bundle)
 
-        if arguments.install:
-            print '\nInstalling %s...' % arguments.bundle
-            mdm.transferApplication(arguments.bundle)
-            mdm.installApplication(arguments.bundle)
+    if arguments.install:
+        print '\nInstalling %s...' % arguments.bundle
+        mdm.transferApplication(arguments.bundle)
+        mdm.installApplication(arguments.bundle)
 
-        if arguments.list_applications:
-            print '\nInstalled applications:'
-            applications = mdm.lookupApplications()
-            bundleIdentifiers = applications.keys()
-            bundleIdentifiers.sort()
-            for bundleId in bundleIdentifiers:
-                print bundleId
+    if arguments.list_applications:
+        print '\nInstalled applications:'
+        applications = mdm.lookupApplications()
+        bundleIdentifiers = applications.keys()
+        bundleIdentifiers.sort()
+        for bundleId in bundleIdentifiers:
+            print bundleId
 
-        if arguments.mount:
-            ddi = DeviceSupportPaths('iPhoneOS', mdm.productVersion(), mdm.buildVersion()).developerDiskImagePath()
-            print '\nMounting %s...' % ddi
-            mdm.mountImage(ddi)
+    if arguments.mount:
+        ddi = DeviceSupportPaths('iPhoneOS', mdm.productVersion(), mdm.buildVersion()).developerDiskImagePath()
+        print '\nMounting %s...' % ddi
+        mdm.mountImage(ddi)
 
-        if arguments.run:
-            executable = mdm.lookupApplicationExecutable(arguments.appid or mdm.bundleId(arguments.bundle))
-            db = mdm.debugServer()
-            if arguments.timeout > 0:
-                db.settimeout(arguments.timeout)
-            debugger = GdbServer(db)
-            argv = [executable]
-            if arguments.arguments:
-                argv += arguments.arguments
-            print '\nRunning %s...' % ' '.join(argv)
-            try:
-                debugger.run(*argv)
-            except DebuggerException, e:
-                print e
-                sys.exit(1)
-            sys.exit(debugger.exitCode)
-    finally:
-        mdm.disconnect()
+    if arguments.run:
+        executable = mdm.lookupApplicationExecutable(arguments.appid or mdm.bundleId(arguments.bundle))
+        db = mdm.debugServer()
+        if arguments.timeout > 0:
+            db.settimeout(arguments.timeout)
+        debugger = GdbServer(db)
+        argv = [executable]
+        if arguments.arguments:
+            argv += arguments.arguments
+        print '\nRunning %s...' % ' '.join(argv)
+        try:
+            debugger.run(*argv)
+        except DebuggerException, e:
+            print e
+            sys.exit(1)
+        sys.exit(debugger.exitCode)
     mdm.close()

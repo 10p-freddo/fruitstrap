@@ -768,25 +768,30 @@ class GdbServer(object):
     def __init__(self, connectedSocket):
         self._socket = connectedSocket
         self.exitCode = None
+        self._readBuffer = ''
 
     def read(self):
-        response = ''
-        while not '$' in response or not '#' in response or len(response) < response.index('#') + 2:
+        while not '$' in self._readBuffer or self._readBuffer.find('#', self._readBuffer.find('$')) == -1 or len(self._readBuffer) < self._readBuffer.find('#', self._readBuffer.find('$')) + 2:
             data = self._socket.recv(4096)
             if not data:
                 break
-            response += data
+            self._readBuffer += data
 
-        while response.startswith('+'):
-            response = response[1:]
+        while self._readBuffer.startswith('+'):
+            self._readBuffer = self._readBuffer[1:]
 
         payload = None
-        if '$' in response and '#' in response and len(response) >= response.index('#') + 2:
-            payload = response[response.index('$') + 1:response.index('#')]
-            checksum = response[response.index('#') + 1:]
+        startIndex = self._readBuffer.find('$')
+        endIndex = self._readBuffer.find('#', startIndex)
+        if startIndex != -1 and endIndex != -1 and len(self._readBuffer) >= endIndex + 2:
+            payload = self._readBuffer[startIndex + 1:endIndex]
+            checksum = self._readBuffer[endIndex + 1:endIndex + 3]
             if checksum != '00':
-                if checksum != '%02x' % (sum(ord(c) for c in payload) & 255):
-                    raise RuntimeError('Bad response checksum.')
+                calculated = '%02x' % (sum(ord(c) for c in payload) & 255)
+                if checksum != calculated:
+                    raise RuntimeError('Bad response checksum (%s vs %s).' % (checksum, calculated))
+
+        self._readBuffer = self._readBuffer[endIndex + 3:]
 
         return payload
 

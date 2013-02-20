@@ -14,7 +14,7 @@ A typical automated test might execute something like follow, to uninstall any
 old versions of the app (-u), install the new one (-m), mount the developer
 disk image (-m), run the app (-r), and pass the arguments "--smokeTest" to the
 app (-a).
-    apply.py -b build/Example.app -u -i -m -r -a --smokeTest
+    apple.py -b build/Example.app -u -i -m -r -a --smokeTest
 
 This will display all output from the app to standard out as it is running and
 exit with the application's exit code.

@@ -771,19 +771,24 @@ class GdbServer(object):
         self._readBuffer = ''
 
     def read(self):
-        while not '$' in self._readBuffer or self._readBuffer.find('#', self._readBuffer.find('$')) == -1 or len(self._readBuffer) < self._readBuffer.find('#', self._readBuffer.find('$')) + 2:
+        startIndex = self._readBuffer.find('$')
+        endIndex = self._readBuffer.find('#', startIndex)
+        while startIndex == -1 or endIndex == -1 or len(self._readBuffer) < endIndex + 3:
             data = self._socket.recv(4096)
             if not data:
                 break
             self._readBuffer += data
+            startIndex = self._readBuffer.find('$')
+            endIndex = self._readBuffer.find('#', startIndex)
 
+        # Discard any ACKs.  We trust we're on a reliable connection.
         while self._readBuffer.startswith('+'):
             self._readBuffer = self._readBuffer[1:]
 
         payload = None
         startIndex = self._readBuffer.find('$')
         endIndex = self._readBuffer.find('#', startIndex)
-        if startIndex != -1 and endIndex != -1 and len(self._readBuffer) >= endIndex + 2:
+        if startIndex != -1 and endIndex != -1 and len(self._readBuffer) >= endIndex + 3:
             payload = self._readBuffer[startIndex + 1:endIndex]
             checksum = self._readBuffer[endIndex + 1:endIndex + 3]
             if checksum != '00':

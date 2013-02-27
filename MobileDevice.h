@@ -448,6 +448,11 @@ void AMDAddLogFileDescriptor(int fd);
 //kern_return_t AMDeviceSendMessage(service_conn_t socket, void *unused, CFPropertyListRef plist);
 //kern_return_t AMDeviceReceiveMessage(service_conn_t socket, CFDictionaryRef options, CFPropertyListRef * result);
 
+typedef int (*am_device_install_application_callback)(CFDictionaryRef, int);
+
+mach_error_t AMDeviceInstallApplication(service_conn_t socket, CFStringRef path, CFDictionaryRef options, am_device_install_application_callback callback, void *user);
+mach_error_t AMDeviceTransferApplication(service_conn_t socket, CFStringRef path, CFDictionaryRef options, am_device_install_application_callback callbackj, void *user);
+
 /* ----------------------------------------------------------------------------
  *   Semi-private routines
  * ------------------------------------------------------------------------- */

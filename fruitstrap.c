@@ -53,7 +53,6 @@ char *gdb_args = "";
 int timeout = 0;
 CFStringRef last_path = NULL;
 service_conn_t gdbfd;
-int child_pid = 0;
 
 Boolean path_exists(CFTypeRef path) {
     if (CFGetTypeID(path) == CFStringGetTypeID()) {
@@ -483,7 +482,7 @@ void start_remote_debug_server(AMDeviceRef device) {
 }
 
 void killed(int signum) {
-    killpg(child_pid, SIGTERM);
+    killpg(0, SIGTERM);
     _exit(0);
 }
 
@@ -578,14 +577,17 @@ void handle_device(AMDeviceRef device) {
     printf("-------------------------\n");
 
     signal(SIGHUP, gdb_ready_handler);
+    signal(SIGINT, killed);
+    signal(SIGTERM, killed);
 
     pid_t parent = getpid();
     int pid = fork();
     if (pid == 0) {
         CFStringRef path = copy_xcode_path_for(CFSTR("Platforms/iPhoneOS.platform/Developer/usr/libexec/gdb"), CFSTR("gdb-arm-apple-darwin"));
         if (path == NULL) {
-             printf("[ !! ] Unable to locate GDB.\n");
-             exit(1);
+            printf("[ !! ] Unable to locate GDB.\n");
+            kill(parent, SIGHUP);
+            exit(1);
         } else {
             CFStringRef gdb_cmd = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@ %@ %s"), path, CFSTR(GDB_SHELL), gdb_args);
  
@@ -597,11 +599,6 @@ void handle_device(AMDeviceRef device) {
         kill(parent, SIGHUP);  // "No. I am your father."
         _exit(0);
     }
-
-    child_pid = pid;
-    setpgid(pid, 0); // Set process group of child to child's pid
-    signal(SIGINT, killed);
-    signal(SIGTERM, killed);
 }
 
 void device_callback(struct am_device_notification_callback_info *info, void *arg) {

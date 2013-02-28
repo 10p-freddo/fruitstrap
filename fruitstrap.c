@@ -688,7 +688,10 @@ int main(int argc, char *argv[]) {
         exit(0);
     }
 
-    if (unbuffered) setbuf(stdout, NULL);
+    if (unbuffered) {
+        setbuf(stdout, NULL);
+        setbuf(stderr, NULL);
+    }
 
     printf("------ Install phase ------\n");
 

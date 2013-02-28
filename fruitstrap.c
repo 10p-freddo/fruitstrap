@@ -265,12 +265,8 @@ void mount_developer_image(AMDeviceRef device) {
     CFStringRef sig_path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@.signature"), image_path);
 
     if (verbose) {
-        printf("Device support path: ");
-        fflush(stdout);
-        CFShow(ds_path);
-        printf("Developer disk image: ");
-        fflush(stdout);
-        CFShow(image_path);
+        printf("Device support path: %s\n", CFStringGetCStringPtr(ds_path, CFStringGetSystemEncoding()));
+        printf("Developer disk image: %s\n", CFStringGetCStringPtr(image_path, CFStringGetSystemEncoding()));
     }
     CFRelease(ds_path);
 

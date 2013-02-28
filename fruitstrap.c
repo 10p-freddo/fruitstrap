@@ -641,7 +641,7 @@ int main(int argc, char *argv[]) {
         { "verbose", no_argument, NULL, 'v' },
         { "timeout", required_argument, NULL, 't' },
         { "unbuffered", no_argument, NULL, 'u' },
-        { "gbdbargs", required_argument, NULL, 'g' },
+        { "gdbargs", required_argument, NULL, 'g' },
         { "nostart", no_argument, NULL, 'n' },
         { NULL, 0, NULL, 0 },
     };

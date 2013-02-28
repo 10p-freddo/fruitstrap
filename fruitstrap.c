@@ -19,10 +19,9 @@
     set auto-raise-load-levels 1\n\
     set shlib-path-substitutions /usr \"{ds_path}/Symbols/usr\" /System \"{ds_path}/Symbols/System\" \"{device_container}\" \"{disk_container}\" \"/private{device_container}\" \"{disk_container}\" /Developer \"{ds_path}/Symbols/Developer\"\n\
     set remote max-packet-size 1024\n\
-    set sharedlibrary check-uuids on\n\
+    set sharedlibrary check-uuids off\n\
     set env NSUnbufferedIO YES\n\
     set minimal-signal-handling 1\n\
-    set sharedlibrary load-rules \\\".*\\\" \\\".*\\\" container\n\
     set inferior-auto-start-dyld 0\n\
     file \"{disk_app}\"\n\
     set remote executable-directory {device_app}\n\
@@ -35,7 +34,7 @@
     run {args}\n\
     set minimal-signal-handling 0\n\
     set inferior-auto-start-cfm off\n\
-    set sharedLibrary load-rules exec \".*\" all\n\
+    set sharedLibrary load-rules dyld \".*\" none exec \".*\" none\n\
     sharedlibrary apply-load-rules all\n\
     set inferior-auto-start-dyld 1"
 

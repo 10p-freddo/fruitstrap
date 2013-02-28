@@ -647,7 +647,7 @@ int main(int argc, char *argv[]) {
     };
     char ch;
 
-    while ((ch = getopt_long(argc, argv, "dvin:b:a:t:u:g:", longopts, NULL)) != -1)
+    while ((ch = getopt_long(argc, argv, "dvuni:b:a:t:g:", longopts, NULL)) != -1)
     {
         switch (ch) {
         case 'd':

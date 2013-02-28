@@ -15,7 +15,7 @@
 #define GDB_SHELL      "--arch armv7f -x " PREP_CMDS_PATH
 
 // approximation of what Xcode does:
-#define GDB_PREP_CMDS CFSTR("set mi-show-protections off\n\
+#define GDB_PREP_CMDS "set mi-show-protections off\n\
     set auto-raise-load-levels 1\n\
     set shlib-path-substitutions /usr \"{ds_path}/Symbols/usr\" /System \"{ds_path}/Symbols/System\" \"{device_container}\" \"{disk_container}\" \"/private{device_container}\" \"{disk_container}\" /Developer \"{ds_path}/Symbols/Developer\"\n\
     set remote max-packet-size 1024\n\
@@ -37,9 +37,7 @@
     set inferior-auto-start-cfm off\n\
     set sharedLibrary load-rules dyld \".*libobjc.*\" all dyld \".*CoreFoundation.*\" all dyld \".*Foundation.*\" all dyld \".*libSystem.*\" all dyld \".*AppKit.*\" all dyld \".*PBGDBIntrospectionSupport.*\" all dyld \".*/usr/lib/dyld.*\" all dyld \".*CarbonDataFormatters.*\" all dyld \".*libauto.*\" all dyld \".*CFDataFormatters.*\" all dyld \"/System/Library/Frameworks\\\\\\\\|/System/Library/PrivateFrameworks\\\\\\\\|/usr/lib\" extern dyld \".*\" all exec \".*\" all\n\
     sharedlibrary apply-load-rules all\n\
-    set inferior-auto-start-dyld 1\n\
-    continue\n\
-    quit")
+    set inferior-auto-start-dyld 1"
 
 typedef struct am_device * AMDeviceRef;
 int AMDeviceSecureTransferPath(int zero, AMDeviceRef device, CFURLRef url, CFDictionaryRef options, void *callback, int cbarg);
@@ -47,7 +45,7 @@ int AMDeviceSecureInstallApplication(int zero, AMDeviceRef device, CFURLRef url,
 int AMDeviceMountImage(AMDeviceRef device, CFStringRef image, CFDictionaryRef options, void *callback, int cbarg);
 int AMDeviceLookupApplications(AMDeviceRef device, int zero, CFDictionaryRef* result);
 
-bool found_device = false, debug = false, verbose = false, unbuffered = false;
+bool found_device = false, debug = false, verbose = false, unbuffered = false, nostart = false;
 char *app_path = NULL;
 char *device_id = NULL;
 char *args = NULL;
@@ -399,7 +397,12 @@ CFStringRef copy_disk_app_identifier(CFURLRef disk_app_url) {
 }
 
 void write_gdb_prep_cmds(AMDeviceRef device, CFURLRef disk_app_url) {
-    CFMutableStringRef cmds = CFStringCreateMutableCopy(NULL, 0, GDB_PREP_CMDS);
+    CFMutableStringRef cmds = NULL;
+    if (nostart) {
+        cmds = CFStringCreateMutableCopy(NULL, 0, CFSTR(GDB_PREP_CMDS));
+    } else {
+        cmds = CFStringCreateMutableCopy(NULL, 0, CFSTR(GDB_PREP_CMDS "\ncontinue\nquit"));
+    }
     CFRange range = { 0, CFStringGetLength(cmds) };
 
     CFStringRef ds_path = copy_device_support_path(device);
@@ -627,6 +630,7 @@ void usage(const char* app) {
         "  -t, --timeout <timeout>      number of seconds to wait for a device to be connected\n"
         "  -u, --unbuffered             don't buffer stdout\n"
         "  -g, --gdbargs <args>         extra arguments to pass to GDB when starting the debugger\n"
+        "  -n, --nostart                do not start the app when debugging\n"
         "  -v, --verbose                enable verbose output\n", 
         app);
 }
@@ -641,11 +645,12 @@ int main(int argc, char *argv[]) {
         { "timeout", required_argument, NULL, 't' },
         { "unbuffered", no_argument, NULL, 'u' },
         { "gbdbargs", required_argument, NULL, 'g' },
+        { "nostart", no_argument, NULL, 'n' },
         { NULL, 0, NULL, 0 },
     };
     char ch;
 
-    while ((ch = getopt_long(argc, argv, "dvi:b:a:t:u:g:", longopts, NULL)) != -1)
+    while ((ch = getopt_long(argc, argv, "dvin:b:a:t:u:g:", longopts, NULL)) != -1)
     {
         switch (ch) {
         case 'd':
@@ -671,6 +676,9 @@ int main(int argc, char *argv[]) {
             break;
         case 'g':
             gdb_args = optarg;
+            break;
+        case 'n':
+            nostart = 1;
             break;
         default:
             usage(argv[0]);

@@ -618,7 +618,17 @@ void timeout_callback(CFRunLoopTimerRef timer, void *info) {
 }
 
 void usage(const char* app) {
-    printf("usage: %s [-d/--debug] [-i/--id device_id] -b/--bundle bundle.app [-a/--args arguments] [-t/--timeout timeout(seconds)] [-u/--unbuffered]\n", app);
+    printf(
+        "Usage: %s [OPTION]...\n"
+        "  -d, --debug                  launch the app in a debugger after installation\n"
+        "  -i, --id <device_id>         the id of the device to connect to\n"
+        "  -b, --bundle <bundle.app>    the path to the app bundle to be installed\n"
+        "  -a, --args <args>            command line arguments to pass to the app when launching it\n"
+        "  -t, --timeout <timeout>      number of seconds to wait for a device to be connected\n"
+        "  -u, --unbuffered             don't buffer stdout\n"
+        "  -g, --gdbargs <args>         extra arguments to pass to GDB when starting the debugger\n"
+        "  -v, --verbose                enable verbose output\n", 
+        app);
 }
 
 int main(int argc, char *argv[]) {

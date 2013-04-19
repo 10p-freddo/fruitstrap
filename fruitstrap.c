@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <sys/sysctl.h>
 #include <stdio.h>
 #include <signal.h>
 #include <getopt.h>
@@ -52,6 +53,7 @@ char *gdb_args = "";
 int timeout = 0;
 CFStringRef last_path = NULL;
 service_conn_t gdbfd;
+pid_t parent = 0;
 
 Boolean path_exists(CFTypeRef path) {
     if (CFGetTypeID(path) == CFStringGetTypeID()) {
@@ -476,8 +478,46 @@ void start_remote_debug_server(AMDeviceRef device) {
     CFRunLoopAddSource(CFRunLoopGetMain(), CFSocketCreateRunLoopSource(NULL, fdvendor, 0), kCFRunLoopCommonModes);
 }
 
+void kill_ptree_inner(pid_t root, int signum, struct kinfo_proc *kp, int kp_len) {
+    int i;
+    for (i = 0; i < kp_len; i++) {
+        if (kp[i].kp_eproc.e_ppid == root) {
+            kill_ptree_inner(kp[i].kp_proc.p_pid, signum, kp, kp_len);
+        }
+    }
+    if (root != getpid()) {
+        kill(root, signum);
+    }
+}
+
+int kill_ptree(pid_t root, int signum) {
+    int mib[3];
+    size_t len;
+    mib[0] = CTL_KERN;
+    mib[1] = KERN_PROC;
+    mib[2] = KERN_PROC_ALL;
+    if (sysctl(mib, 3, NULL, &len, NULL, 0) == -1) {            
+        return -1;
+    }
+
+    struct kinfo_proc *kp = calloc(1, len);
+    if (!kp) {
+        return -1;
+    }
+
+    if (sysctl(mib, 3, kp, &len, NULL, 0) == -1) {            
+        free(kp);
+        return -1;
+    }
+
+    kill_ptree_inner(root, signum, kp, len / sizeof(struct kinfo_proc));
+
+    free(kp);
+    return 0;
+}
+
 void killed(int signum) {
-    killpg(0, SIGTERM);
+    kill_ptree(parent, SIGTERM);
     _exit(0);
 }
 
@@ -575,7 +615,7 @@ void handle_device(AMDeviceRef device) {
     signal(SIGINT, killed);
     signal(SIGTERM, killed);
 
-    pid_t parent = getpid();
+    parent = getpid();
     int pid = fork();
     if (pid == 0) {
         CFStringRef path = copy_xcode_path_for(CFSTR("Platforms/iPhoneOS.platform/Developer/usr/libexec/gdb"), CFSTR("gdb-arm-apple-darwin"));

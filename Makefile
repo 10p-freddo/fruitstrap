@@ -16,10 +16,10 @@ ios-deploy: ios-deploy.c
 	gcc -o ios-deploy -framework CoreFoundation -framework MobileDevice -F/System/Library/PrivateFrameworks ios-deploy.c
 
 install: all
-	./ios-deploy demo.app
+	./ios-deploy --bundle demo.app
 
 debug: all
-	./ios-deploy -d demo.app
+	./ios-deploy --debug --bundle demo.app
 
 clean:
 	rm -rf *.app demo ios-deploy

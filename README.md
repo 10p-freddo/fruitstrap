@@ -1,6 +1,4 @@
-## This project is no longer maintained.
-
-fruitstrap
+ios-deploy
 ==========
 Install and debug iPhone apps without using Xcode. Designed to work on unjailbroken devices.
 

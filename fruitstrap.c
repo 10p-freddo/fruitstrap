@@ -54,6 +54,7 @@ int timeout = 0;
 CFStringRef last_path = NULL;
 service_conn_t gdbfd;
 pid_t parent = 0;
+pid_t child = 0;
 
 Boolean path_exists(CFTypeRef path) {
     if (CFGetTypeID(path) == CFStringGetTypeID()) {
@@ -521,6 +522,14 @@ void killed(int signum) {
     _exit(0);
 }
 
+void interrupted(int signum) {
+    if (getpid() == parent) {
+        kill(child, SIGINT);
+    } else {
+        kill_ptree(child, SIGSTOP);        
+    }
+}
+
 void gdb_ready_handler(int signum)
 {
     _exit(0);
@@ -612,12 +621,13 @@ void handle_device(AMDeviceRef device) {
     printf("-------------------------\n");
 
     signal(SIGHUP, gdb_ready_handler);
-    signal(SIGINT, killed);
+    signal(SIGINT, interrupted);
     signal(SIGTERM, killed);
 
     parent = getpid();
     int pid = fork();
     if (pid == 0) {
+        child = getpid();
         CFStringRef path = copy_xcode_path_for(CFSTR("Platforms/iPhoneOS.platform/Developer/usr/libexec/gdb"), CFSTR("gdb-arm-apple-darwin"));
         if (path == NULL) {
             printf("[ !! ] Unable to locate GDB.\n");
@@ -633,6 +643,8 @@ void handle_device(AMDeviceRef device) {
         }
         kill(parent, SIGHUP);  // "No. I am your father."
         _exit(0);
+    } else {
+        child = pid;
     }
 }
 

@@ -9,6 +9,7 @@
 #include <getopt.h>
 #include "MobileDevice.h"
 
+#define APP_VERSION	   "1.0"
 #define FDVENDOR_PATH  "/tmp/fruitstrap-remote-debugserver"
 #define PREP_CMDS_PATH "/tmp/fruitstrap-gdb-prep-cmds"
 #define GDB_SHELL      "/Developer/Platforms/iPhoneOS.platform/Developer/usr/libexec/gdb/gdb-arm-apple-darwin --arch armv7 -q -x " PREP_CMDS_PATH
@@ -496,7 +497,11 @@ void timeout_callback(CFRunLoopTimerRef timer, void *info) {
 }
 
 void usage(const char* app) {
-    printf("usage: %s [-d/--debug] [-i/--id device_id] -b/--bundle bundle.app [-a/--args arguments] [-t/--timeout timeout(seconds)]\n", app);
+    printf("usage: %s [-V/--version] [-v/--verbose] [-d/--debug] [-i/--id device_id] -b/--bundle bundle.app [-a/--args arguments] [-t/--timeout timeout(seconds)]\n", app);
+}
+
+void version() {
+    printf("%s\n", APP_VERSION);
 }
 
 int main(int argc, char *argv[]) {
@@ -507,11 +512,12 @@ int main(int argc, char *argv[]) {
         { "args", required_argument, NULL, 'a' },
         { "verbose", no_argument, NULL, 'v' },
         { "timeout", required_argument, NULL, 't' },
+        { "version", no_argument, NULL, 'V' },
         { NULL, 0, NULL, 0 },
     };
     char ch;
 
-    while ((ch = getopt_long(argc, argv, "dvi:b:a:t:", longopts, NULL)) != -1)
+    while ((ch = getopt_long(argc, argv, "Vdvi:b:a:t:", longopts, NULL)) != -1)
     {
         switch (ch) {
         case 'd':
@@ -529,6 +535,9 @@ int main(int argc, char *argv[]) {
         case 'v':
             verbose = 1;
             break;
+        case 'V':
+            version();
+            return 1;
         case 't':
             timeout = atoi(optarg);
             break;

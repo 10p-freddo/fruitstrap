@@ -1,7 +1,7 @@
 IOS_CC = clang
 IOS_SDK = /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS6.1.sdk
 
-all: ios-deploy
+all: clean ios-deploy
 
 demo.app: demo Info.plist
 	mkdir -p demo.app
@@ -13,7 +13,7 @@ demo: demo.c
 	$(IOS_CC) -arch armv7 -isysroot $(IOS_SDK) -framework CoreFoundation -o demo demo.c
 
 ios-deploy: ios-deploy.c
-	gcc -o ios-deploy -framework CoreFoundation -framework MobileDevice -F/System/Library/PrivateFrameworks ios-deploy.c
+	$(IOS_CC) -o ios-deploy -framework CoreFoundation -framework MobileDevice -F/System/Library/PrivateFrameworks ios-deploy.c
 
 install: all
 	mkdir -p $(prefix)/bin

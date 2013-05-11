@@ -44,6 +44,8 @@ int AMDeviceSecureTransferPath(int zero, AMDeviceRef device, CFURLRef url, CFDic
 int AMDeviceSecureInstallApplication(int zero, AMDeviceRef device, CFURLRef url, CFDictionaryRef options, void *callback, int cbarg);
 int AMDeviceMountImage(AMDeviceRef device, CFStringRef image, CFDictionaryRef options, void *callback, int cbarg);
 int AMDeviceLookupApplications(AMDeviceRef device, int zero, CFDictionaryRef* result);
+int AMDeviceTransferApplication(unsigned int fd, CFStringRef path, void* ptr, void *transfer_callback, void* ptr2);
+int AMDeviceInstallApplication(unsigned int fd, CFStringRef path, CFDictionaryRef options, void *install_callback, void* ptr);
 
 bool found_device = false, debug = false, verbose = false;
 char *app_path = NULL;
@@ -125,11 +127,11 @@ CFStringRef copy_developer_disk_image_path(AMDeviceRef device) {
         found = path_exists(path);
     }
     if (!found) {
-        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%s/Library/Developer/Xcode/iOS DeviceSupport/@%/DeveloperDiskImage.dmg"), home, version);
+        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%s/Library/Developer/Xcode/iOS DeviceSupport/%@/DeveloperDiskImage.dmg"), home, version);
         found = path_exists(path);
     }
     if (!found) {
-        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Developer/Platforms/iPhoneOS.platform/DeviceSupport/@%/DeveloperDiskImage.dmg"), version);
+        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Developer/Platforms/iPhoneOS.platform/DeviceSupport/%@/DeveloperDiskImage.dmg"), version);
         found = path_exists(path);
     }
     if (!found) {
@@ -414,7 +416,7 @@ void handle_device(AMDeviceRef device) {
 
     CFRelease(relative_url);
 
-    int afcFd;
+    unsigned int afcFd;
     assert(AMDeviceStartService(device, CFSTR("com.apple.afc"), &afcFd, NULL) == 0);
     assert(AMDeviceStopSession(device) == 0);
     assert(AMDeviceDisconnect(device) == 0);
@@ -431,7 +433,7 @@ void handle_device(AMDeviceRef device) {
     assert(AMDeviceValidatePairing(device) == 0);
     assert(AMDeviceStartSession(device) == 0);
 
-    int installFd;
+    unsigned int installFd;
     assert(AMDeviceStartService(device, CFSTR("com.apple.mobile.installation_proxy"), &installFd, NULL) == 0);
 
     assert(AMDeviceStopSession(device) == 0);

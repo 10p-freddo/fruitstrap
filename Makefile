@@ -15,7 +15,7 @@ demo: demo.c
 ios-deploy: ios-deploy.c
 	$(IOS_CC) -o ios-deploy -framework CoreFoundation -framework MobileDevice -F/System/Library/PrivateFrameworks ios-deploy.c
 
-install: all
+install: ios-deploy
 	mkdir -p $(prefix)/bin
 	cp ios-deploy $(prefix)/bin
 

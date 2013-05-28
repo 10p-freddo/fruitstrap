@@ -1,4 +1,4 @@
-IOS_CC = clang
+IOS_CC = gcc
 IOS_SDK = /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS6.1.sdk
 
 all: clean ios-deploy

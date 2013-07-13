@@ -1,21 +1,21 @@
-## This project is no longer maintained.
-
 fruitstrap
 ==========
 Install and debug iPhone apps without using Xcode. Designed to work on unjailbroken devices.
 
 ## Requirements
 
-* Mac OS X. Tested on Snow Leopard only.
-* You need to have a valid iPhone development certificate installed.
+* Mac OS X. Tested on Lion/Mountain Lion.
+* You need to have a valid iPhone development certificate installed (or at least a correctly signed iOS app).
 * Xcode must be installed, along with the SDK for your iOS version.
 
 ## Usage
 
-* `fruitstrap [-d] -b <app> [device_id]`
+* `fruitstrap [-d/--debug] [-i/--id device_id] -b/--bundle <app> [-a/--args arguments] [-t/--timeout timeout(seconds)] [-u/--unbuffered] [-g/--gdbargs gdb_arguments]`
 * Optional `-d` flag launches a remote GDB session after the app has been installed.
 * `<app>` must be an iPhone application bundle, *not* an IPA.
-* Optional `device_id`; useful when you have more than one iPhone/iPad connected.
+* Optional device id, useful when you have more than one iPhone/iPad connected to your computer
+* `<arguments>` are passed as argv to the running app.
+* `<gdb_arguments>` are passed to gdb.
 
 ## Demo
 

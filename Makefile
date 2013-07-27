@@ -1,5 +1,6 @@
 IOS_CC = gcc
-IOS_SDK = /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS6.1.sdk
+IOS_SDK = $(shell xcode-select --print-path)/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS6.1.sdk
+DEVICE_SUPPORT = $(shell xcode-select --print-path)/Platforms/iPhoneOS.platform/DeviceSupport
 
 all: clean ios-deploy
 
@@ -15,7 +16,10 @@ demo: demo.c
 ios-deploy: ios-deploy.c
 	$(IOS_CC) -o ios-deploy -framework CoreFoundation -framework MobileDevice -F/System/Library/PrivateFrameworks ios-deploy.c
 
-install: ios-deploy
+symlink: 
+	cd $(DEVICE_SUPPORT); ln -sfn "`find . -type d -maxdepth 1 -exec basename {} \; | tail -1`" Latest	
+    
+install: symlink ios-deploy
 	mkdir -p $(prefix)/bin
 	cp ios-deploy $(prefix)/bin
 

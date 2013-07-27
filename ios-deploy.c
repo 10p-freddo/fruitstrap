@@ -9,7 +9,7 @@
 #include <getopt.h>
 #include "MobileDevice.h"
 
-#define APP_VERSION	   "1.0"
+#define APP_VERSION	   "1.0.2"
 #define FDVENDOR_PATH  "/tmp/ios-deploy-remote-debugserver"
 #define PREP_CMDS_PATH "/tmp/ios-deploy-gdb-prep-cmds"
 #define GDB_SHELL      "`xcode-select -print-path`/Platforms/iPhoneOS.platform/Developer/usr/libexec/gdb/gdb-arm-apple-darwin --arch armv7 -q -x " PREP_CMDS_PATH

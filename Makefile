@@ -13,7 +13,7 @@ demo.app: demo Info.plist
 demo: demo.c
 	$(IOS_CC) -arch armv7 -isysroot $(IOS_SDK) -framework CoreFoundation -o demo demo.c
 
-ios-deploy: ios-deploy.c
+ios-deploy: clean ios-deploy.c
 	$(IOS_CC) -o ios-deploy -framework CoreFoundation -framework MobileDevice -F/System/Library/PrivateFrameworks ios-deploy.c
 
 symlink: 
@@ -22,6 +22,9 @@ symlink:
 install: symlink ios-deploy
 	mkdir -p $(prefix)/bin
 	cp ios-deploy $(prefix)/bin
+
+uninstall:
+	rm $(prefix)/bin/ios-deploy
 
 debug: all
 	./ios-deploy --debug --bundle demo.app

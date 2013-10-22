@@ -15,6 +15,7 @@
 #include <netinet/tcp.h>
 #include "MobileDevice.h"
 
+#define APP_VERSION    "1.0.2"
 #define PREP_CMDS_PATH "/tmp/fruitstrap-lldb-prep-cmds-"
 #define LLDB_SHELL "python -u -c \"import time; time.sleep(0.5); print 'run'; time.sleep(2000000)\" | lldb -s " PREP_CMDS_PATH
 
@@ -746,8 +747,13 @@ void usage(const char* app) {
         "  -x, --gdbexec <file>         GDB commands script file\n"
         "  -n, --nostart                do not start the app when debugging\n"
         "  -v, --verbose                enable verbose output\n"
-        "  -m, --noinstall              directly start debugging without app install (-d not required) \n",
+        "  -m, --noinstall              directly start debugging without app install (-d not required) \n"
+        "  -V, --version                print the executable version \n",
         app);
+}
+
+void show_version() {
+	printf("%s\n", APP_VERSION);
 }
 
 int main(int argc, char *argv[]) {
@@ -762,12 +768,13 @@ int main(int argc, char *argv[]) {
         { "unbuffered", no_argument, NULL, 'u' },
         { "nostart", no_argument, NULL, 'n' },
         { "detect", no_argument, NULL, 'c' },
+        { "version", no_argument, NULL, 'V' },
         { "noinstall", no_argument, NULL, 'm' },
         { NULL, 0, NULL, 0 },
     };
     char ch;
 
-    while ((ch = getopt_long(argc, argv, "mcdvuni:b:a:t:g:x:", longopts, NULL)) != -1)
+    while ((ch = getopt_long(argc, argv, "Vmcdvuni:b:a:t:g:x:", longopts, NULL)) != -1)
     {
         switch (ch) {
         case 'm':
@@ -801,6 +808,9 @@ int main(int argc, char *argv[]) {
         case 'c':
             detect_only = true;
             break;
+        case 'V':
+            show_version();
+            return 1;
         default:
             usage(argv[0]);
             return 1;

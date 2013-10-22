@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/un.h>
+#include <sys/sysctl.h>
 #include <stdio.h>
 #include <signal.h>
 #include <getopt.h>
@@ -14,9 +15,7 @@
 #include <netinet/tcp.h>
 #include "MobileDevice.h"
 
-#define FDVENDOR_PATH  "/tmp/fruitstrap-remote-debugserver"
-#define PREP_CMDS_PATH "/tmp/fruitstrap-lldb-prep-cmds"
-#define PYTHON_MODULE_PATH "/tmp/fruitstrap.py"
+#define PREP_CMDS_PATH "/tmp/fruitstrap-lldb-prep-cmds-"
 #define LLDB_SHELL "python -u -c \"import time; time.sleep(0.5); print 'run'; time.sleep(2000000)\" | lldb -s " PREP_CMDS_PATH
 
 /*
@@ -26,16 +25,16 @@
  * log enable -v -f /Users/vargaz/gdb-remote.log gdb-remote all
  */
 #define LLDB_PREP_CMDS CFSTR("\
+    platform select remote-ios --sysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/DeviceSupport/*\n\
+    target create \"{disk_app}\"\n\
     script fruitstrap_device_app=\"{device_app}\"\n\
     script fruitstrap_connect_url=\"connect://127.0.0.1:12345\"\n\
-    platform select remote-ios\n\
-    target create \"{disk_app}\"\n\
-    #settings set target.process.extra-startup-command \"QSetLogging:bitmask=LOG_ALL;\"\n \
-    command script import \"" PYTHON_MODULE_PATH "\"\n\
+    script fruitstrap_handle_command=\"command script add -s asynchronous -f {python_command}.fsrun_command run\"\n\
+    command script import \"{python_file_path}\"\n\
 ")
 
 /*
- * Some things do not seem to work when using the normal commands like process connect/launch, so we invoke them 
+ * Some things do not seem to work when using the normal commands like process connect/launch, so we invoke them
  * through the python interface. Also, Launch () doesn't seem to work when ran from init_module (), so we add
  * a command which can be used by the user to run it.
  */
@@ -46,16 +45,17 @@ def __lldb_init_module(debugger, internal_dict):\n\
     # These two are passed in by the script which loads us\n\
     device_app=internal_dict['fruitstrap_device_app']\n\
     connect_url=internal_dict['fruitstrap_connect_url']\n\
+    handle_command = internal_dict['fruitstrap_handle_command']\n\
     lldb.target.modules[0].SetPlatformFileSpec(lldb.SBFileSpec(device_app))\n\
-    lldb.debugger.HandleCommand (\"command script add -s asynchronous -f fruitstrap.fsrun_command run\")\n\
+    lldb.debugger.HandleCommand(handle_command)\n\
     error=lldb.SBError()\n\
     lldb.target.ConnectRemote(lldb.target.GetDebugger().GetListener(),connect_url,None,error)\n\
 \n\
 def fsrun_command(debugger, command, result, internal_dict):\n\
     error=lldb.SBError()\n\
-    lldb.target.Launch(lldb.SBLaunchInfo(None),error)\n\
+    lldb.target.Launch(lldb.SBLaunchInfo(['{args}']),error)\n\
+    print str(error)\n\
 ")
-
 
 typedef struct am_device * AMDeviceRef;
 int AMDeviceSecureTransferPath(int zero, AMDeviceRef device, CFURLRef url, CFDictionaryRef options, void *callback, int cbarg);
@@ -63,14 +63,14 @@ int AMDeviceSecureInstallApplication(int zero, AMDeviceRef device, CFURLRef url,
 int AMDeviceMountImage(AMDeviceRef device, CFStringRef image, CFDictionaryRef options, void *callback, int cbarg);
 int AMDeviceLookupApplications(AMDeviceRef device, int zero, CFDictionaryRef* result);
 
-bool found_device = false, debug = false, verbose = false, unbuffered = false;
+bool found_device = false, debug = false, verbose = false, unbuffered = false, nostart = false, detect_only = false, install = true;
 char *app_path = NULL;
 char *device_id = NULL;
 char *args = NULL;
 int timeout = 0;
 CFStringRef last_path = NULL;
 service_conn_t gdbfd;
-int child_pid = 0;
+pid_t parent = 0;
 
 Boolean path_exists(CFTypeRef path) {
     if (CFGetTypeID(path) == CFStringGetTypeID()) {
@@ -85,9 +85,20 @@ Boolean path_exists(CFTypeRef path) {
     }
 }
 
-CFStringRef copy_long_shot_disk_image_path() {
+CFStringRef find_path(CFStringRef rootPath, CFStringRef namePattern, CFStringRef expression) {
     FILE *fpipe = NULL;
-    char *command = "find `xcode-select --print-path` -name DeveloperDiskImage.dmg | tail -n 1";
+    CFStringRef quotedRootPath = rootPath;
+    if (CFStringGetCharacterAtIndex(rootPath, 0) != '`') {
+        quotedRootPath = CFStringCreateWithFormat(NULL, NULL, CFSTR("'%@'"), rootPath);
+    }
+    CFStringRef cf_command = CFStringCreateWithFormat(NULL, NULL, CFSTR("find %@ -name '%@' %@ 2>/dev/null | sort | tail -n 1"), quotedRootPath, namePattern, expression);
+    if (quotedRootPath != rootPath) {
+        CFRelease(quotedRootPath);
+    }
+
+    char command[1024] = { '\0' };
+    CFStringGetCString(cf_command, command, sizeof(command), kCFStringEncodingUTF8);
+    CFRelease(cf_command);
 
     if (!(fpipe = (FILE *)popen(command, "r")))
     {
@@ -104,23 +115,31 @@ CFStringRef copy_long_shot_disk_image_path() {
     return CFStringCreateWithCString(NULL, buffer, kCFStringEncodingUTF8);
 }
 
+CFStringRef copy_long_shot_disk_image_path() {
+    return find_path(CFSTR("`xcode-select --print-path`"), CFSTR("DeveloperDiskImage.dmg"), CFSTR(""));
+}
+
 CFStringRef copy_xcode_dev_path() {
-    FILE *fpipe = NULL;
-    char *command = "xcode-select -print-path";
+    static char xcode_dev_path[256] = { '\0' };
+    if (strlen(xcode_dev_path) == 0) {
+        FILE *fpipe = NULL;
+        char *command = "xcode-select -print-path";
 
-    if (!(fpipe = (FILE *)popen(command, "r")))
-    {
-        perror("Error encountered while opening pipe");
-        exit(EXIT_FAILURE);
+        if (!(fpipe = (FILE *)popen(command, "r")))
+        {
+            perror("Error encountered while opening pipe");
+            exit(EXIT_FAILURE);
+        }
+
+        char buffer[256] = { '\0' };
+
+        fgets(buffer, sizeof(buffer), fpipe);
+        pclose(fpipe);
+
+        strtok(buffer, "\n");
+        strcpy(xcode_dev_path, buffer);
     }
-
-    char buffer[256] = { '\0' };
-
-    fgets(buffer, sizeof(buffer), fpipe);
-    pclose(fpipe);
-
-    strtok(buffer, "\n");
-    return CFStringCreateWithCString(NULL, buffer, kCFStringEncodingUTF8);
+    return CFStringCreateWithCString(NULL, xcode_dev_path, kCFStringEncodingUTF8);
 }
 
 const char *get_home() {
@@ -132,29 +151,34 @@ const char *get_home() {
     return home;
 }
 
-CFStringRef copy_xcode_path_for(CFStringRef search) {
+CFStringRef copy_xcode_path_for(CFStringRef subPath, CFStringRef search) {
     CFStringRef xcodeDevPath = copy_xcode_dev_path();
     CFStringRef path;
     bool found = false;
     const char* home = get_home();
 
-    
+
     // Try using xcode-select --print-path
     if (!found) {
-        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@/%@"), xcodeDevPath, search);
+        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@/%@/%@"), xcodeDevPath, subPath, search);
         found = path_exists(path);
+    }
+    // Try find `xcode-select --print-path` with search as a name pattern
+    if (!found) {
+        path = find_path(CFStringCreateWithFormat(NULL, NULL, CFSTR("%@/%@"), xcodeDevPath, subPath), search, CFSTR("-maxdepth 1"));
+        found = CFStringGetLength(path) > 0 && path_exists(path);
     }
     // If not look in the default xcode location (xcode-select is sometimes wrong)
     if (!found) {
-        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Applications/Xcode.app/Contents/Developer/%@"), search);
+        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Applications/Xcode.app/Contents/Developer/%@&%@"), subPath, search);
         found = path_exists(path);
     }
     // If not look in the users home directory, Xcode can store device support stuff there
     if (!found) {
-        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%s/Library/Developer/Xcode/%@"), home, search);
+        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%s/Library/Developer/Xcode/%@/%@"), home, subPath, search);
         found = path_exists(path);
     }
-    
+
     CFRelease(xcodeDevPath);
 
     if (found) {
@@ -165,25 +189,46 @@ CFStringRef copy_xcode_path_for(CFStringRef search) {
     }
 }
 
-CFStringRef copy_device_support_path(AMDeviceRef device) {
+CFMutableArrayRef get_device_product_version_parts(AMDeviceRef device) {
     CFStringRef version = AMDeviceCopyValue(device, 0, CFSTR("ProductVersion"));
+    CFArrayRef parts = CFStringCreateArrayBySeparatingStrings(NULL, version, CFSTR("."));
+    CFMutableArrayRef result = CFArrayCreateMutableCopy(NULL, CFArrayGetCount(parts), parts);
+    CFRelease(version);
+    CFRelease(parts);
+    return result;
+}
+
+CFStringRef copy_device_support_path(AMDeviceRef device) {
+    CFStringRef version = NULL;
     CFStringRef build = AMDeviceCopyValue(device, 0, CFSTR("BuildVersion"));
     CFStringRef path = NULL;
+    CFMutableArrayRef version_parts = get_device_product_version_parts(device);
 
-    if (path == NULL) {
-        path = copy_xcode_path_for(CFStringCreateWithFormat(NULL, NULL, CFSTR("iOS DeviceSupport/%@ (%@)"), version, build));
+    while (CFArrayGetCount(version_parts) > 0) {
+        version = CFStringCreateByCombiningStrings(NULL, version_parts, CFSTR("."));
+        if (path == NULL) {
+            path = copy_xcode_path_for(CFSTR("iOS DeviceSupport"), CFStringCreateWithFormat(NULL, NULL, CFSTR("%@ (%@)"), version, build));
+        }
+        if (path == NULL) {
+            path = copy_xcode_path_for(CFSTR("Platforms/iPhoneOS.platform/DeviceSupport"), CFStringCreateWithFormat(NULL, NULL, CFSTR("%@ (%@)"), version, build));
+        }
+        if (path == NULL) {
+            path = copy_xcode_path_for(CFSTR("Platforms/iPhoneOS.platform/DeviceSupport"), CFStringCreateWithFormat(NULL, NULL, CFSTR("%@ (*)"), version));
+        }
+        if (path == NULL) {
+            path = copy_xcode_path_for(CFSTR("Platforms/iPhoneOS.platform/DeviceSupport"), version);
+        }
+        if (path == NULL) {
+            path = copy_xcode_path_for(CFSTR("Platforms/iPhoneOS.platform/DeviceSupport/Latest"), CFSTR(""));
+        }
+        CFRelease(version);
+        if (path != NULL) {
+            break;
+        }
+        CFArrayRemoveValueAtIndex(version_parts, CFArrayGetCount(version_parts) - 1);
     }
-    if (path == NULL) {
-        path = copy_xcode_path_for(CFStringCreateWithFormat(NULL, NULL, CFSTR("Platforms/iPhoneOS.platform/DeviceSupport/%@ (%@)"), version, build));
-    }
-    if (path == NULL) {
-        path = copy_xcode_path_for(CFStringCreateWithFormat(NULL, NULL, CFSTR("Platforms/iPhoneOS.platform/DeviceSupport/%@"), version));
-    }
-    if (path == NULL) {
-        path = copy_xcode_path_for(CFSTR("Platforms/iPhoneOS.platform/DeviceSupport/Latest"));
-    }
-    
-    CFRelease(version);
+
+    CFRelease(version_parts);
     CFRelease(build);
 
     if (path == NULL)
@@ -195,28 +240,18 @@ CFStringRef copy_device_support_path(AMDeviceRef device) {
     return path;
 }
 
-CFStringRef copy_developer_disk_image_path(AMDeviceRef device) {
-    CFStringRef version = AMDeviceCopyValue(device, 0, CFSTR("ProductVersion"));
-    CFStringRef build = AMDeviceCopyValue(device, 0, CFSTR("BuildVersion"));
-    CFStringRef path = NULL;
+CFStringRef copy_developer_disk_image_path(CFStringRef deviceSupportPath) {
+    CFStringRef path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@/%@"), deviceSupportPath, CFSTR("DeveloperDiskImage.dmg"));
+    if (!path_exists(path)) {
+        CFRelease(path);
+        path = NULL;
+    }
 
-    if (path == NULL) {
-        path = copy_xcode_path_for(CFStringCreateWithFormat(NULL, NULL, CFSTR("Platforms/iPhoneOS.platform/DeviceSupport/%@ (%@)/DeveloperDiskImage.dmg"), version, build));
-    }
-    if (path == NULL) {
-        path = copy_xcode_path_for(CFStringCreateWithFormat(NULL, NULL, CFSTR("Platforms/iPhoneOS.platform/DeviceSupport/%@/DeveloperDiskImage.dmg"), version));
-    }
-    if (path == NULL) {
-        path = copy_xcode_path_for(CFSTR("Platforms/iPhoneOS.platform/DeviceSupport/Latest/DeveloperDiskImage.dmg"));
-    }
-    
-    CFRelease(version);
-    CFRelease(build);
-    
     if (path == NULL) {
         // Sometimes Latest seems to be missing in Xcode, in that case use find and hope for the best
         path = copy_long_shot_disk_image_path();
         if (CFStringGetLength(path) < 5) {
+            CFRelease(path);
             path = NULL;
         }
     }
@@ -244,18 +279,14 @@ void mount_callback(CFDictionaryRef dict, int arg) {
 
 void mount_developer_image(AMDeviceRef device) {
     CFStringRef ds_path = copy_device_support_path(device);
-    CFStringRef image_path = copy_developer_disk_image_path(device);
+    CFStringRef image_path = copy_developer_disk_image_path(ds_path);
     CFStringRef sig_path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@.signature"), image_path);
-    CFRelease(ds_path);
 
     if (verbose) {
-        printf("Device support path: ");
-        fflush(stdout);
-        CFShow(ds_path);
-        printf("Developer disk image: ");
-        fflush(stdout);
-        CFShow(image_path);
+        printf("Device support path: %s\n", CFStringGetCStringPtr(ds_path, CFStringGetSystemEncoding()));
+        printf("Developer disk image: %s\n", CFStringGetCStringPtr(image_path, CFStringGetSystemEncoding()));
     }
+    CFRelease(ds_path);
 
     FILE* sig = fopen(CFStringGetCStringPtr(sig_path, kCFStringEncodingMacRoman), "rb");
     void *sig_buf = malloc(128);
@@ -351,9 +382,20 @@ void write_lldb_prep_cmds(AMDeviceRef device, CFURLRef disk_app_url) {
     CFStringFindAndReplace(cmds, CFSTR("{ds_path}"), ds_path, range, 0);
     range.length = CFStringGetLength(cmds);
 
+    CFMutableStringRef pmodule = CFStringCreateMutableCopy(NULL, 0, LLDB_FRUITSTRAP_MODULE);
     if (args) {
         CFStringRef cf_args = CFStringCreateWithCString(NULL, args, kCFStringEncodingASCII);
         CFStringFindAndReplace(cmds, CFSTR("{args}"), cf_args, range, 0);
+
+        //format the arguments 'arg1 arg2 ....' to an argument list ['arg1', 'arg2', ...]
+        CFMutableStringRef argsListLLDB = CFStringCreateMutableCopy(NULL, 0, cf_args);
+        CFRange rangeLLDB = { 0, CFStringGetLength(argsListLLDB) };
+        CFStringFindAndReplace(argsListLLDB, CFSTR(" "), CFSTR(" "), rangeLLDB, 0);//remove multiple spaces
+        rangeLLDB.length = CFStringGetLength(argsListLLDB);
+        CFStringFindAndReplace(argsListLLDB, CFSTR(" "), CFSTR("', '"), rangeLLDB, 0);
+        rangeLLDB.length = CFStringGetLength(pmodule);
+        CFStringFindAndReplace(pmodule, CFSTR("{args}"), argsListLLDB, rangeLLDB, 0);
+
         CFRelease(cf_args);
     } else {
         CFStringFindAndReplace(cmds, CFSTR(" {args}"), CFSTR(""), range, 0);
@@ -383,14 +425,32 @@ void write_lldb_prep_cmds(AMDeviceRef device, CFURLRef disk_app_url) {
     CFStringRef disk_container_path = CFURLCopyFileSystemPath(disk_container_url, kCFURLPOSIXPathStyle);
     CFStringFindAndReplace(cmds, CFSTR("{disk_container}"), disk_container_path, range, 0);
 
+    char python_file_path[300] = "/tmp/fruitstrap_";
+    char python_command[300] = "fruitstrap_";
+    if(device_id != NULL) {
+        strcat(python_file_path, device_id);
+        strcat(python_command, device_id);
+    }
+    strcat(python_file_path, ".py");
+
+    CFStringRef cf_python_command = CFStringCreateWithCString(NULL, python_command, kCFStringEncodingASCII);
+    CFStringFindAndReplace(cmds, CFSTR("{python_command}"), cf_python_command, range, 0);
+    range.length = CFStringGetLength(cmds);
+    CFStringRef cf_python_file_path = CFStringCreateWithCString(NULL, python_file_path, kCFStringEncodingASCII);
+    CFStringFindAndReplace(cmds, CFSTR("{python_file_path}"), cf_python_file_path, range, 0);
+    range.length = CFStringGetLength(cmds);
+
     CFDataRef cmds_data = CFStringCreateExternalRepresentation(NULL, cmds, kCFStringEncodingASCII, 0);
-    FILE *out = fopen(PREP_CMDS_PATH, "w");
+    char prep_cmds_path[300] = PREP_CMDS_PATH;
+    if(device_id != NULL)
+        strcat(prep_cmds_path, device_id);
+    FILE *out = fopen(prep_cmds_path, "w");
     fwrite(CFDataGetBytePtr(cmds_data), CFDataGetLength(cmds_data), 1, out);
     fclose(out);
 
-    CFMutableStringRef pmodule = CFStringCreateMutableCopy(NULL, 0, LLDB_FRUITSTRAP_MODULE);
     CFDataRef pmodule_data = CFStringCreateExternalRepresentation(NULL, pmodule, kCFStringEncodingASCII, 0);
-    out = fopen(PYTHON_MODULE_PATH, "w");
+
+    out = fopen(python_file_path, "w");
     fwrite(CFDataGetBytePtr(pmodule_data), CFDataGetLength(pmodule_data), 1, out);
     fclose(out);
 
@@ -406,6 +466,8 @@ void write_lldb_prep_cmds(AMDeviceRef device, CFURLRef disk_app_url) {
     CFRelease(disk_container_url);
     CFRelease(disk_container_path);
     CFRelease(cmds_data);
+    CFRelease(cf_python_command);
+    CFRelease(cf_python_file_path);
 }
 
 CFSocketRef server_socket;
@@ -426,7 +488,7 @@ server_callback (CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef add
         //close (CFSocketGetNative (lldb_socket));
         return;
     }
-    res = write (CFSocketGetNative (lldb_socket), CFDataGetBytePtr (data), CFDataGetLength (data)); 
+    res = write (CFSocketGetNative (lldb_socket), CFDataGetBytePtr (data), CFDataGetLength (data));
 }
 
 void lldb_callback(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef address, const void *data, void *info)
@@ -479,7 +541,7 @@ void start_remote_debug_server(AMDeviceRef device) {
 
     int yes = 1;
     setsockopt(CFSocketGetNative(fdvendor), SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
-    int flag = 1; 
+    int flag = 1;
     res = setsockopt(CFSocketGetNative(fdvendor), IPPROTO_TCP, TCP_NODELAY, (char *) &flag, sizeof(int));
     assert (res == 0);
 
@@ -488,6 +550,44 @@ void start_remote_debug_server(AMDeviceRef device) {
     CFSocketSetAddress(fdvendor, address_data);
     CFRelease(address_data);
     CFRunLoopAddSource(CFRunLoopGetMain(), CFSocketCreateRunLoopSource(NULL, fdvendor, 0), kCFRunLoopCommonModes);
+}
+
+void kill_ptree_inner(pid_t root, int signum, struct kinfo_proc *kp, int kp_len) {
+    int i;
+    for (i = 0; i < kp_len; i++) {
+        if (kp[i].kp_eproc.e_ppid == root) {
+            kill_ptree_inner(kp[i].kp_proc.p_pid, signum, kp, kp_len);
+        }
+    }
+    if (root != getpid()) {
+        kill(root, signum);
+    }
+}
+
+int kill_ptree(pid_t root, int signum) {
+    int mib[3];
+    size_t len;
+    mib[0] = CTL_KERN;
+    mib[1] = KERN_PROC;
+    mib[2] = KERN_PROC_ALL;
+    if (sysctl(mib, 3, NULL, &len, NULL, 0) == -1) {
+        return -1;
+    }
+
+    struct kinfo_proc *kp = calloc(1, len);
+    if (!kp) {
+        return -1;
+    }
+
+    if (sysctl(mib, 3, kp, &len, NULL, 0) == -1) {
+        free(kp);
+        return -1;
+    }
+
+    kill_ptree_inner(root, signum, kp, len / sizeof(struct kinfo_proc));
+
+    free(kp);
+    return 0;
 }
 
 void killed(int signum) {
@@ -501,75 +601,7 @@ void lldb_finished_handler(int signum)
     _exit(0);
 }
 
-void handle_device(AMDeviceRef device) {
-    if (found_device) return; // handle one device only
-
-    CFStringRef found_device_id = AMDeviceCopyDeviceIdentifier(device);
-
-    if (device_id != NULL) {
-        if(strcmp(device_id, CFStringGetCStringPtr(found_device_id, CFStringGetSystemEncoding())) == 0) {
-            found_device = true;
-        } else {
-            return;
-        }
-    } else {
-        found_device = true;
-    }
-
-    CFRetain(device); // don't know if this is necessary?
-
-    printf("[  0%%] Found device (%s), beginning install\n", CFStringGetCStringPtr(found_device_id, CFStringGetSystemEncoding()));
-
-    AMDeviceConnect(device);
-    assert(AMDeviceIsPaired(device));
-    assert(AMDeviceValidatePairing(device) == 0);
-    assert(AMDeviceStartSession(device) == 0);
-
-    CFStringRef path = CFStringCreateWithCString(NULL, app_path, kCFStringEncodingASCII);
-    CFURLRef relative_url = CFURLCreateWithFileSystemPath(NULL, path, kCFURLPOSIXPathStyle, false);
-    CFURLRef url = CFURLCopyAbsoluteURL(relative_url);
-
-    CFRelease(relative_url);
-
-    service_conn_t afcFd;
-    assert(AMDeviceStartService(device, CFSTR("com.apple.afc"), &afcFd, NULL) == 0);
-    assert(AMDeviceStopSession(device) == 0);
-    assert(AMDeviceDisconnect(device) == 0);
-    assert(AMDeviceTransferApplication(afcFd, path, NULL, transfer_callback, NULL) == 0);
-
-    close(afcFd);
-
-    CFStringRef keys[] = { CFSTR("PackageType") };
-    CFStringRef values[] = { CFSTR("Developer") };
-    CFDictionaryRef options = CFDictionaryCreate(NULL, (const void **)&keys, (const void **)&values, 1, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
-
-    AMDeviceConnect(device);
-    assert(AMDeviceIsPaired(device));
-    assert(AMDeviceValidatePairing(device) == 0);
-    assert(AMDeviceStartSession(device) == 0);
-
-    service_conn_t installFd;
-    assert(AMDeviceStartService(device, CFSTR("com.apple.mobile.installation_proxy"), &installFd, NULL) == 0);
-
-    assert(AMDeviceStopSession(device) == 0);
-    assert(AMDeviceDisconnect(device) == 0);
-
-    mach_error_t result = AMDeviceInstallApplication(installFd, path, options, install_callback, NULL);
-    if (result != 0)
-    {
-       printf("AMDeviceInstallApplication failed: %d\n", result);
-        exit(1);
-    }
-
-    close(installFd);
-
-    CFRelease(path);
-    CFRelease(options);
-
-    printf("[100%%] Installed package %s\n", app_path);
-
-    if (!debug) exit(0); // no debug phase
-
+void launch_debugger(AMDeviceRef device, CFURLRef url) {
     AMDeviceConnect(device);
     assert(AMDeviceIsPaired(device));
     assert(AMDeviceValidatePairing(device) == 0);
@@ -587,19 +619,101 @@ void handle_device(AMDeviceRef device) {
     printf("-------------------------\n");
 
     signal(SIGHUP, lldb_finished_handler);
-
     setpgid(getpid(), 0);
+    signal(SIGINT, killed);
+    signal(SIGTERM, killed);
 
-    pid_t parent = getpid();
+    parent = getpid();
     int pid = fork();
     if (pid == 0) {
-        system(LLDB_SHELL);      // launch lldb
+        char lldb_shell[300] = LLDB_SHELL;
+        if(device_id != NULL)
+            strcat(lldb_shell, device_id);
+        system(lldb_shell);    // launch lldb
         kill(parent, SIGHUP);  // "No. I am your father."
         _exit(0);
     }
 
-    signal(SIGINT, killed);
-    signal(SIGTERM, killed);
+}
+
+void handle_device(AMDeviceRef device) {
+    if (found_device) return; // handle one device only
+    CFStringRef found_device_id = AMDeviceCopyDeviceIdentifier(device);
+
+    if (device_id != NULL) {
+        if(strcmp(device_id, CFStringGetCStringPtr(found_device_id, CFStringGetSystemEncoding())) == 0) {
+            found_device = true;
+        } else {
+            return;
+        }
+    } else {
+        found_device = true;
+    }
+
+    if (detect_only) {
+        printf("[....] Found device (%s).\n", CFStringGetCStringPtr(found_device_id, CFStringGetSystemEncoding()));
+        exit(0);
+    }
+
+
+    CFRetain(device); // don't know if this is necessary?
+
+    CFStringRef path = CFStringCreateWithCString(NULL, app_path, kCFStringEncodingASCII);
+    CFURLRef relative_url = CFURLCreateWithFileSystemPath(NULL, path, kCFURLPOSIXPathStyle, false);
+    CFURLRef url = CFURLCopyAbsoluteURL(relative_url);
+
+    CFRelease(relative_url);
+
+    if(install) {
+        printf("[  0%%] Found device (%s), beginning install\n", CFStringGetCStringPtr(found_device_id, CFStringGetSystemEncoding()));
+
+        AMDeviceConnect(device);
+        assert(AMDeviceIsPaired(device));
+        assert(AMDeviceValidatePairing(device) == 0);
+        assert(AMDeviceStartSession(device) == 0);
+
+
+
+        service_conn_t afcFd;
+        assert(AMDeviceStartService(device, CFSTR("com.apple.afc"), &afcFd, NULL) == 0);
+        assert(AMDeviceStopSession(device) == 0);
+        assert(AMDeviceDisconnect(device) == 0);
+        assert(AMDeviceTransferApplication(afcFd, path, NULL, transfer_callback, NULL) == 0);
+
+        close(afcFd);
+
+        CFStringRef keys[] = { CFSTR("PackageType") };
+        CFStringRef values[] = { CFSTR("Developer") };
+        CFDictionaryRef options = CFDictionaryCreate(NULL, (const void **)&keys, (const void **)&values, 1, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+
+        AMDeviceConnect(device);
+        assert(AMDeviceIsPaired(device));
+        assert(AMDeviceValidatePairing(device) == 0);
+        assert(AMDeviceStartSession(device) == 0);
+
+        service_conn_t installFd;
+        assert(AMDeviceStartService(device, CFSTR("com.apple.mobile.installation_proxy"), &installFd, NULL) == 0);
+
+        assert(AMDeviceStopSession(device) == 0);
+        assert(AMDeviceDisconnect(device) == 0);
+
+        mach_error_t result = AMDeviceInstallApplication(installFd, path, options, install_callback, NULL);
+        if (result != 0)
+        {
+           printf("AMDeviceInstallApplication failed: %d\n", result);
+            exit(1);
+        }
+
+        close(installFd);
+
+        CFRelease(path);
+        CFRelease(options);
+
+        printf("[100%%] Installed package %s\n", app_path);
+    }
+
+    if (!debug) exit(0); // no debug phase
+    launch_debugger(device, url);
 }
 
 void device_callback(struct am_device_notification_callback_info *info, void *arg) {
@@ -613,13 +727,27 @@ void device_callback(struct am_device_notification_callback_info *info, void *ar
 
 void timeout_callback(CFRunLoopTimerRef timer, void *info) {
     if (!found_device) {
-        printf("Timed out waiting for device.\n");
+        printf("[....] Timed out waiting for device.\n");
         exit(1);
     }
 }
 
 void usage(const char* app) {
-    printf("usage: %s [-d/--debug] [-i/--id device_id] -b/--bundle bundle.app [-a/--args arguments] [-t/--timeout timeout(seconds)] [-u/--unbuffered] [-g/--gdbargs gdbarguments]\n", app);
+    printf(
+        "Usage: %s [OPTION]...\n"
+        "  -d, --debug                  launch the app in GDB after installation\n"
+        "  -i, --id <device_id>         the id of the device to connect to\n"
+        "  -c, --detect                 only detect if the device is connected\n"
+        "  -b, --bundle <bundle.app>    the path to the app bundle to be installed\n"
+        "  -a, --args <args>            command line arguments to pass to the app when launching it\n"
+        "  -t, --timeout <timeout>      number of seconds to wait for a device to be connected\n"
+        "  -u, --unbuffered             don't buffer stdout\n"
+        "  -g, --gdbargs <args>         extra arguments to pass to GDB when starting the debugger\n"
+        "  -x, --gdbexec <file>         GDB commands script file\n"
+        "  -n, --nostart                do not start the app when debugging\n"
+        "  -v, --verbose                enable verbose output\n"
+        "  -m, --noinstall              directly start debugging without app install (-d not required) \n",
+        app);
 }
 
 int main(int argc, char *argv[]) {
@@ -630,14 +758,22 @@ int main(int argc, char *argv[]) {
         { "args", required_argument, NULL, 'a' },
         { "verbose", no_argument, NULL, 'v' },
         { "timeout", required_argument, NULL, 't' },
+        { "gdbexec", no_argument, NULL, 'x' },
         { "unbuffered", no_argument, NULL, 'u' },
+        { "nostart", no_argument, NULL, 'n' },
+        { "detect", no_argument, NULL, 'c' },
+        { "noinstall", no_argument, NULL, 'm' },
         { NULL, 0, NULL, 0 },
     };
     char ch;
 
-    while ((ch = getopt_long(argc, argv, "dvi:b:a:t:u:g:", longopts, NULL)) != -1)
+    while ((ch = getopt_long(argc, argv, "mcdvuni:b:a:t:g:x:", longopts, NULL)) != -1)
     {
         switch (ch) {
+        case 'm':
+            install = 0;
+            debug = 1;
+            break;
         case 'd':
             debug = 1;
             break;
@@ -659,22 +795,39 @@ int main(int argc, char *argv[]) {
         case 'u':
             unbuffered = 1;
             break;
+        case 'n':
+            nostart = 1;
+            break;
+        case 'c':
+            detect_only = true;
+            break;
         default:
             usage(argv[0]);
             return 1;
         }
     }
 
-    if (!app_path) {
+    if (!app_path && !detect_only) {
         usage(argv[0]);
         exit(0);
     }
 
-    if (unbuffered) setbuf(stdout, NULL);
+    if (unbuffered) {
+        setbuf(stdout, NULL);
+        setbuf(stderr, NULL);
+    }
 
-    printf("------ Install phase ------\n");
+    if (detect_only && timeout == 0) {
+        timeout = 5;
+    }
 
-    assert(access(app_path, F_OK) == 0);
+    if (!detect_only) {
+        printf("------ Install phase ------\n");
+    }
+
+    if (app_path) {
+        assert(access(app_path, F_OK) == 0);
+    }
 
     AMDSetLogLevel(5); // otherwise syslog gets flooded with crap
     if (timeout > 0)

@@ -10,10 +10,20 @@ Install and debug iPhone apps without using Xcode. Designed to work on unjailbro
 
 ## Usage
 
-* `ios-deploy [-d] -b <app> [device_id]`
-* Optional `-d` flag launches a remote GDB session after the app has been installed.
-* `<app>` must be an iPhone application bundle, *not* an IPA.
-* Optional `device_id`; useful when you have more than one iPhone/iPad connected.
+./ios-deploy [OPTION]...
+  -d, --debug                  launch the app in GDB after installation
+  -i, --id <device_id>         the id of the device to connect to
+  -c, --detect                 only detect if the device is connected
+  -b, --bundle <bundle.app>    the path to the app bundle to be installed
+  -a, --args <args>            command line arguments to pass to the app when launching it
+  -t, --timeout <timeout>      number of seconds to wait for a device to be connected
+  -u, --unbuffered             don't buffer stdout
+  -g, --gdbargs <args>         extra arguments to pass to GDB when starting the debugger
+  -x, --gdbexec <file>         GDB commands script file
+  -n, --nostart                do not start the app when debugging
+  -v, --verbose                enable verbose output
+  -m, --noinstall              directly start debugging without app install (-d not required) 
+  -V, --version                print the executable version
 
 ## Demo
 

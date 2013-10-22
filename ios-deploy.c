@@ -15,7 +15,7 @@
 #include <netinet/tcp.h>
 #include "MobileDevice.h"
 
-#define APP_VERSION    "1.0.2"
+#define APP_VERSION    "1.0.4"
 #define PREP_CMDS_PATH "/tmp/fruitstrap-lldb-prep-cmds-"
 #define LLDB_SHELL "python -u -c \"import time; time.sleep(0.5); print 'run'; time.sleep(2000000)\" | lldb -s " PREP_CMDS_PATH
 

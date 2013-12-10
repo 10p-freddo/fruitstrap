@@ -18,7 +18,7 @@
 
 #define APP_VERSION    "1.0.4"
 #define PREP_CMDS_PATH "/tmp/fruitstrap-lldb-prep-cmds-"
-#define LLDB_SHELL "python -u -c $'import time\ntime.sleep(0.5)\nwhile True: time.sleep(0.1); cmd = raw_input(); print (cmd)' | lldb -s " PREP_CMDS_PATH
+#define LLDB_SHELL "python -u -c $'import time\ntime.sleep(1.0)\n%swhile True: time.sleep(0.1); cmd = raw_input(); print (cmd)' | lldb -s " PREP_CMDS_PATH
 
 /*
  * Startup script passed to lldb.
@@ -658,7 +658,10 @@ void launch_debugger(AMDeviceRef device, CFURLRef url) {
     parent = getpid();
     int pid = fork();
     if (pid == 0) {
-        char lldb_shell[300] = LLDB_SHELL;
+        char *runOption = nostart ? "" : "print \\\'run\\\'\n";
+        char lldb_shell[400];
+        sprintf(lldb_shell, LLDB_SHELL, runOption);
+
         if(device_id != NULL)
             strcat(lldb_shell, device_id);
         system(lldb_shell);    // launch lldb

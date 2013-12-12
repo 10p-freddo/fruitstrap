@@ -1,6 +1,7 @@
 //TODO: don't copy/mount DeveloperDiskImage.dmg if it's already done - Xcode checks this somehow
 
 #import <CoreFoundation/CoreFoundation.h>
+#import <Foundation/Foundation.h>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -17,7 +18,7 @@
 
 #define APP_VERSION    "1.0.4"
 #define PREP_CMDS_PATH "/tmp/fruitstrap-lldb-prep-cmds-"
-#define LLDB_SHELL "python -u -c \"import time; time.sleep(0.5); print 'run'; time.sleep(2000000)\" | lldb -s " PREP_CMDS_PATH
+#define LLDB_SHELL "python -u -c $'import time\ntime.sleep(1.0)\n%swhile True: time.sleep(0.1); cmd = raw_input(); print (cmd)' | lldb -s " PREP_CMDS_PATH
 
 /*
  * Startup script passed to lldb.
@@ -62,7 +63,7 @@ typedef struct am_device * AMDeviceRef;
 int AMDeviceSecureTransferPath(int zero, AMDeviceRef device, CFURLRef url, CFDictionaryRef options, void *callback, int cbarg);
 int AMDeviceSecureInstallApplication(int zero, AMDeviceRef device, CFURLRef url, CFDictionaryRef options, void *callback, int cbarg);
 int AMDeviceMountImage(AMDeviceRef device, CFStringRef image, CFDictionaryRef options, void *callback, int cbarg);
-int AMDeviceLookupApplications(AMDeviceRef device, int zero, CFDictionaryRef* result);
+mach_error_t AMDeviceLookupApplications(AMDeviceRef device, CFDictionaryRef options, CFDictionaryRef *result);
 
 bool found_device = false, debug = false, verbose = false, unbuffered = false, nostart = false, detect_only = false, install = true;
 char *app_path = NULL;
@@ -346,8 +347,38 @@ mach_error_t install_callback(CFDictionaryRef dict, int arg) {
 }
 
 CFURLRef copy_device_app_url(AMDeviceRef device, CFStringRef identifier) {
-    CFDictionaryRef result;
-    assert(AMDeviceLookupApplications(device, 0, &result) == 0);
+    CFDictionaryRef result = nil;
+
+    NSArray *a = [NSArray arrayWithObjects:
+                  @"CFBundleIdentifier",			// absolute must
+                  @"ApplicationDSID",
+                  @"ApplicationType",
+                  @"CFBundleExecutable",
+                  @"CFBundleDisplayName",
+                  @"CFBundleIconFile",
+                  @"CFBundleName",
+                  @"CFBundleShortVersionString",
+                  @"CFBundleSupportedPlatforms",
+                  @"CFBundleURLTypes",
+                  @"CodeInfoIdentifier",
+                  @"Container",
+                  @"Entitlements",
+                  @"HasSettingsBundle",
+                  @"IsUpgradeable",
+                  @"MinimumOSVersion",
+                  @"Path",
+                  @"SignerIdentity",
+                  @"UIDeviceFamily",
+                  @"UIFileSharingEnabled",
+                  @"UIStatusBarHidden",
+                  @"UISupportedInterfaceOrientations",
+                  nil];
+    
+    NSDictionary *optionsDict = [NSDictionary dictionaryWithObject:a forKey:@"ReturnAttributes"];
+	CFDictionaryRef options = (CFDictionaryRef)optionsDict;
+    
+    afc_error_t resultStatus = AMDeviceLookupApplications(device, options, &result);
+    assert(resultStatus == 0);
 
     CFDictionaryRef app_dict = CFDictionaryGetValue(result, identifier);
     assert(app_dict != NULL);
@@ -627,7 +658,10 @@ void launch_debugger(AMDeviceRef device, CFURLRef url) {
     parent = getpid();
     int pid = fork();
     if (pid == 0) {
-        char lldb_shell[300] = LLDB_SHELL;
+        char *runOption = nostart ? "" : "print \\\'run\\\'\n";
+        char lldb_shell[400];
+        sprintf(lldb_shell, LLDB_SHELL, runOption);
+
         if(device_id != NULL)
             strcat(lldb_shell, device_id);
         system(lldb_shell);    // launch lldb

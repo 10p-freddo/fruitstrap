@@ -30,7 +30,7 @@
     platform select remote-ios --sysroot {symbols_path}\n\
     target create \"{disk_app}\"\n\
     script fruitstrap_device_app=\"{device_app}\"\n\
-    script fruitstrap_connect_url=\"connect://127.0.0.1:12345\"\n\
+    script fruitstrap_connect_url=\"connect://127.0.0.1:{device_port}\"\n\
     script fruitstrap_handle_command=\"command script add -s asynchronous -f {python_command}.fsrun_command run\"\n\
     command script import \"{python_file_path}\"\n\
 ")
@@ -70,6 +70,7 @@ char *app_path = NULL;
 char *device_id = NULL;
 char *args = NULL;
 int timeout = 0;
+int port = 12345;
 CFStringRef last_path = NULL;
 service_conn_t gdbfd;
 pid_t parent = 0;
@@ -449,6 +450,10 @@ void write_lldb_prep_cmds(AMDeviceRef device, CFURLRef disk_app_url) {
     CFStringFindAndReplace(cmds, CFSTR("{disk_app}"), disk_app_path, range, 0);
     range.length = CFStringGetLength(cmds);
 
+    CFStringRef device_port = CFStringCreateWithFormat(NULL, NULL, CFSTR("%d"), port);
+    CFStringFindAndReplace(cmds, CFSTR("{device_port}"), device_port, range, 0);
+    range.length = CFStringGetLength(cmds);
+
     CFURLRef device_container_url = CFURLCreateCopyDeletingLastPathComponent(NULL, device_app_url);
     CFStringRef device_container_path = CFURLCopyFileSystemPath(device_container_url, kCFURLPOSIXPathStyle);
     CFMutableStringRef dcp_noprivate = CFStringCreateMutableCopy(NULL, 0, device_container_path);
@@ -571,7 +576,7 @@ void start_remote_debug_server(AMDeviceRef device) {
     memset(&addr4, 0, sizeof(addr4));
     addr4.sin_len = sizeof(addr4);
     addr4.sin_family = AF_INET;
-    addr4.sin_port = htons(12345);
+    addr4.sin_port = htons(port);
     addr4.sin_addr.s_addr = htonl(INADDR_ANY);
 
     CFSocketRef fdvendor = CFSocketCreate(NULL, PF_INET, 0, 0, kCFSocketAcceptCallBack, &fdvendor_callback, NULL);
@@ -787,6 +792,7 @@ void usage(const char* app) {
         "  -n, --nostart                do not start the app when debugging\n"
         "  -v, --verbose                enable verbose output\n"
         "  -m, --noinstall              directly start debugging without app install (-d not required) \n"
+        "  -p, --port <number>          port used for device, default: 12345 \n"
         "  -V, --version                print the executable version \n",
         app);
 }
@@ -809,11 +815,12 @@ int main(int argc, char *argv[]) {
         { "detect", no_argument, NULL, 'c' },
         { "version", no_argument, NULL, 'V' },
         { "noinstall", no_argument, NULL, 'm' },
+        { "port", required_argument, NULL, 'p' },
         { NULL, 0, NULL, 0 },
     };
     char ch;
 
-    while ((ch = getopt_long(argc, argv, "Vmcdvuni:b:a:t:g:x:", longopts, NULL)) != -1)
+    while ((ch = getopt_long(argc, argv, "Vmcdvuni:b:a:t:g:x:p:", longopts, NULL)) != -1)
     {
         switch (ch) {
         case 'm':
@@ -850,6 +857,9 @@ int main(int argc, char *argv[]) {
         case 'V':
             show_version();
             return 1;
+        case 'p':
+            port = atoi(optarg);
+            break;
         default:
             usage(argv[0]);
             return 1;

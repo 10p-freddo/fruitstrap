@@ -27,7 +27,7 @@
  * log enable -v -f /Users/vargaz/gdb-remote.log gdb-remote all
  */
 #define LLDB_PREP_CMDS CFSTR("\
-    platform select remote-ios --sysroot {home}/Library/Developer/Xcode/iOS\\ DeviceSupport/7.0.4\\ (11B554a)/Symbols/\n\
+    platform select remote-ios --sysroot {symbols_path}\n\
     target create \"{disk_app}\"\n\
     script fruitstrap_device_app=\"{device_app}\"\n\
     script fruitstrap_connect_url=\"connect://127.0.0.1:12345\"\n\
@@ -407,14 +407,15 @@ CFStringRef copy_disk_app_identifier(CFURLRef disk_app_url) {
 }
 
 void write_lldb_prep_cmds(AMDeviceRef device, CFURLRef disk_app_url) {
+    CFStringRef ds_path = copy_device_support_path(device);
+    CFStringRef symbols_path = CFStringCreateWithFormat(NULL, NULL, CFSTR("'%@/Symbols'"), ds_path);
+
     CFMutableStringRef cmds = CFStringCreateMutableCopy(NULL, 0, LLDB_PREP_CMDS);
     CFRange range = { 0, CFStringGetLength(cmds) };
 
-    CFStringRef user_home_path = CFStringCreateWithCString(NULL, getenv("HOME"), kCFStringEncodingASCII);
-    CFStringFindAndReplace(cmds, CFSTR("{home}"), user_home_path, range, 0);
+    CFStringFindAndReplace(cmds, CFSTR("{symbols_path}"), symbols_path, range, 0);
     range.length = CFStringGetLength(cmds);
 
-    CFStringRef ds_path = copy_device_support_path(device);
     CFStringFindAndReplace(cmds, CFSTR("{ds_path}"), ds_path, range, 0);
     range.length = CFStringGetLength(cmds);
 
@@ -492,7 +493,6 @@ void write_lldb_prep_cmds(AMDeviceRef device, CFURLRef disk_app_url) {
 
     CFRelease(cmds);
     if (ds_path != NULL) CFRelease(ds_path);
-    CFRelease(user_home_path);
     CFRelease(bundle_identifier);
     CFRelease(device_app_url);
     CFRelease(device_app_path);

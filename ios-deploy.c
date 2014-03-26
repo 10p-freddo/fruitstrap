@@ -43,6 +43,13 @@ const char* lldb_prep_interactive_cmds = "\
     run\n\
 ";
 
+const char* lldb_prep_noninteractive_cmds = "\
+    settings set -- auto-confirm true\n\
+    target stop-hook add --one-liner \"bt\"\n\
+    target stop-hook add --one-liner \"quit\"\n\
+    run\n\
+";
+
 /*
  * Some things do not seem to work when using the normal commands like process connect/launch, so we invoke them
  * through the python interface. Also, Launch () doesn't seem to work when ran from init_module (), so we add
@@ -90,6 +97,7 @@ int AMDeviceMountImage(AMDeviceRef device, CFStringRef image, CFDictionaryRef op
 mach_error_t AMDeviceLookupApplications(AMDeviceRef device, CFDictionaryRef options, CFDictionaryRef *result);
 
 bool found_device = false, debug = false, verbose = false, unbuffered = false, nostart = false, detect_only = false, install = true;
+bool interactive = true;
 char *app_path = NULL;
 char *device_id = NULL;
 char *args = NULL;
@@ -514,7 +522,9 @@ void write_lldb_prep_cmds(AMDeviceRef device, CFURLRef disk_app_url) {
     fwrite(CFDataGetBytePtr(cmds_data), CFDataGetLength(cmds_data), 1, out);
     // Write additional commands based on mode we're running in
     const char* extra_cmds;
-    if (nostart)
+    if (!interactive)
+        extra_cmds = lldb_prep_noninteractive_cmds;
+    else if (nostart)
         extra_cmds = lldb_prep_no_cmds;
     else
         extra_cmds = lldb_prep_interactive_cmds;
@@ -820,8 +830,9 @@ void usage(const char* app) {
         "  -g, --gdbargs <args>         extra arguments to pass to GDB when starting the debugger\n"
         "  -x, --gdbexec <file>         GDB commands script file\n"
         "  -n, --nostart                do not start the app when debugging\n"
+        "  -I, --noninteractive         start in non interactive mode (quit when app crashes or exits)\n"
         "  -v, --verbose                enable verbose output\n"
-        "  -m, --noinstall              directly start debugging without app install (-d not required) \n"
+        "  -m, --noinstall              directly start debugging without app install (-d not required)\n"
         "  -p, --port <number>          port used for device, default: 12345 \n"
         "  -V, --version                print the executable version \n",
         app);
@@ -842,6 +853,7 @@ int main(int argc, char *argv[]) {
         { "gdbexec", no_argument, NULL, 'x' },
         { "unbuffered", no_argument, NULL, 'u' },
         { "nostart", no_argument, NULL, 'n' },
+        { "noninteractive", no_argument, NULL, 'I' },
         { "detect", no_argument, NULL, 'c' },
         { "version", no_argument, NULL, 'V' },
         { "noinstall", no_argument, NULL, 'm' },
@@ -850,7 +862,7 @@ int main(int argc, char *argv[]) {
     };
     char ch;
 
-    while ((ch = getopt_long(argc, argv, "Vmcdvuni:b:a:t:g:x:p:", longopts, NULL)) != -1)
+    while ((ch = getopt_long(argc, argv, "VmcdvunIi:b:a:t:g:x:p:", longopts, NULL)) != -1)
     {
         switch (ch) {
         case 'm':
@@ -880,6 +892,9 @@ int main(int argc, char *argv[]) {
             break;
         case 'n':
             nostart = 1;
+            break;
+        case 'I':
+            interactive = false;
             break;
         case 'c':
             detect_only = true;

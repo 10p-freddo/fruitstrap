@@ -18,7 +18,7 @@
 
 #define APP_VERSION    "1.0.5"
 #define PREP_CMDS_PATH "/tmp/fruitstrap-lldb-prep-cmds-"
-#define LLDB_SHELL "python -u -c $'import time\ntime.sleep(1.0)\n%swhile True: time.sleep(0.1); cmd = raw_input(); print (cmd)' | lldb -s " PREP_CMDS_PATH
+#define LLDB_SHELL "lldb -s " PREP_CMDS_PATH
 
 /*
  * Startup script passed to lldb.
@@ -31,9 +31,17 @@
     target create \"{disk_app}\"\n\
     script fruitstrap_device_app=\"{device_app}\"\n\
     script fruitstrap_connect_url=\"connect://127.0.0.1:{device_port}\"\n\
-    script fruitstrap_handle_command=\"command script add -s asynchronous -f {python_command}.fsrun_command run\"\n\
     command script import \"{python_file_path}\"\n\
+    command script add -f {python_command}.connect_command connect\n\
+    command script add -s asynchronous -f {python_command}.run_command run\n\
+    connect\n\
 ")
+
+const char* lldb_prep_no_cmds = "";
+
+const char* lldb_prep_interactive_cmds = "\
+    run\n\
+";
 
 /*
  * Some things do not seem to work when using the normal commands like process connect/launch, so we invoke them
@@ -43,19 +51,35 @@
 #define LLDB_FRUITSTRAP_MODULE CFSTR("\
 import lldb\n\
 \n\
-def __lldb_init_module(debugger, internal_dict):\n\
+def connect_command(debugger, command, result, internal_dict):\n\
     # These two are passed in by the script which loads us\n\
-    device_app=internal_dict['fruitstrap_device_app']\n\
-    connect_url=internal_dict['fruitstrap_connect_url']\n\
-    handle_command = internal_dict['fruitstrap_handle_command']\n\
-    lldb.target.modules[0].SetPlatformFileSpec(lldb.SBFileSpec(device_app))\n\
-    lldb.debugger.HandleCommand(handle_command)\n\
-    error=lldb.SBError()\n\
-    lldb.target.ConnectRemote(lldb.target.GetDebugger().GetListener(),connect_url,None,error)\n\
+    connect_url = internal_dict['fruitstrap_connect_url']\n\
+    error = lldb.SBError()\n\
 \n\
-def fsrun_command(debugger, command, result, internal_dict):\n\
-    error=lldb.SBError()\n\
-    lldb.target.Launch(lldb.SBLaunchInfo(['{args}']),error)\n\
+    process = lldb.target.ConnectRemote(lldb.target.GetDebugger().GetListener(), connect_url, None, error)\n\
+\n\
+    # Wait for connection to succeed\n\
+    listener = lldb.target.GetDebugger().GetListener()\n\
+    listener.StartListeningForEvents(process.GetBroadcaster(), lldb.SBProcess.eBroadcastBitStateChanged)\n\
+    events = []\n\
+    state = lldb.eStateInvalid\n\
+    while state != lldb.eStateConnected:\n\
+        event = lldb.SBEvent()\n\
+        if listener.WaitForEvent(1, event):\n\
+            state = process.GetStateFromEvent(event)\n\
+            events.append(event)\n\
+        else:\n\
+            state = lldb.eStateInvalid\n\
+\n\
+    # Add events back to queue, otherwise lldb freezes\n\
+    for event in events:\n\
+        listener.AddEvent(event)\n\
+\n\
+def run_command(debugger, command, result, internal_dict):\n\
+    device_app = internal_dict['fruitstrap_device_app']\n\
+    error = lldb.SBError()\n\
+    lldb.target.modules[0].SetPlatformFileSpec(lldb.SBFileSpec(device_app))\n\
+    lldb.target.Launch(lldb.SBLaunchInfo(['{args}']), error)\n\
     print str(error)\n\
 ")
 
@@ -488,6 +512,13 @@ void write_lldb_prep_cmds(AMDeviceRef device, CFURLRef disk_app_url) {
         strcat(prep_cmds_path, device_id);
     FILE *out = fopen(prep_cmds_path, "w");
     fwrite(CFDataGetBytePtr(cmds_data), CFDataGetLength(cmds_data), 1, out);
+    // Write additional commands based on mode we're running in
+    const char* extra_cmds;
+    if (nostart)
+        extra_cmds = lldb_prep_no_cmds;
+    else
+        extra_cmds = lldb_prep_interactive_cmds;
+    fwrite(extra_cmds, strlen(extra_cmds), 1, out);
     fclose(out);
 
     CFDataRef pmodule_data = CFStringCreateExternalRepresentation(NULL, pmodule, kCFStringEncodingASCII, 0);
@@ -668,9 +699,8 @@ void launch_debugger(AMDeviceRef device, CFURLRef url) {
     parent = getpid();
     int pid = fork();
     if (pid == 0) {
-        char *runOption = nostart ? "" : "print \\\'run\\\'\n";
         char lldb_shell[400];
-        sprintf(lldb_shell, LLDB_SHELL, runOption);
+        sprintf(lldb_shell, LLDB_SHELL);
 
         if(device_id != NULL)
             strcat(lldb_shell, device_id);

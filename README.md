@@ -21,8 +21,10 @@ Install and debug iPhone apps without using Xcode. Designed to work on unjailbro
       -g, --gdbargs <args>         extra arguments to pass to GDB when starting the debugger
       -x, --gdbexec <file>         GDB commands script file
       -n, --nostart                do not start the app when debugging
+      -I, --noninteractive         start in non interactive mode (quit when app crashes or exits)
       -v, --verbose                enable verbose output
       -m, --noinstall              directly start debugging without app install (-d not required) 
+      -p, --port <number>          port used for device, default: 12345
       -V, --version                print the executable version
 
 ## Demo

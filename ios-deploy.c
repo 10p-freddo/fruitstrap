@@ -684,6 +684,16 @@ void lldb_finished_handler(int signum)
     _exit(0);
 }
 
+void bring_process_to_foreground() {
+    if (setpgid(0, 0) == -1)
+        perror("setpgid failed");
+
+    signal(SIGTTOU, SIG_IGN);
+    if (tcsetpgrp(STDIN_FILENO, getpid()) == -1)
+        perror("tcsetpgrp failed");
+    signal(SIGTTOU, SIG_DFL);
+}
+
 void launch_debugger(AMDeviceRef device, CFURLRef url) {
     AMDeviceConnect(device);
     assert(AMDeviceIsPaired(device));
@@ -709,6 +719,8 @@ void launch_debugger(AMDeviceRef device, CFURLRef url) {
     parent = getpid();
     int pid = fork();
     if (pid == 0) {
+        bring_process_to_foreground();
+
         char lldb_shell[400];
         sprintf(lldb_shell, LLDB_SHELL);
 

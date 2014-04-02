@@ -34,6 +34,7 @@
     command script import \"{python_file_path}\"\n\
     command script add -f {python_command}.connect_command connect\n\
     command script add -s asynchronous -f {python_command}.run_command run\n\
+    command script add -s asynchronous -f {python_command}.autoexit_command autoexit\n\
     connect\n\
 ")
 
@@ -44,10 +45,8 @@ const char* lldb_prep_interactive_cmds = "\
 ";
 
 const char* lldb_prep_noninteractive_cmds = "\
-    settings set -- auto-confirm true\n\
-    target stop-hook add --one-liner \"bt\"\n\
-    target stop-hook add --one-liner \"quit\"\n\
     run\n\
+    autoexit\n\
 ";
 
 /*
@@ -57,6 +56,7 @@ const char* lldb_prep_noninteractive_cmds = "\
  */
 #define LLDB_FRUITSTRAP_MODULE CFSTR("\
 import lldb\n\
+import sys\n\
 \n\
 def connect_command(debugger, command, result, internal_dict):\n\
     # These two are passed in by the script which loads us\n\
@@ -88,6 +88,35 @@ def run_command(debugger, command, result, internal_dict):\n\
     lldb.target.modules[0].SetPlatformFileSpec(lldb.SBFileSpec(device_app))\n\
     lldb.target.Launch(lldb.SBLaunchInfo(['{args}']), error)\n\
     print str(error)\n\
+\n\
+def autoexit_command(debugger, command, result, internal_dict):\n\
+    process = lldb.target.process\n\
+    listener = debugger.GetListener()\n\
+    listener.StartListeningForEvents(process.GetBroadcaster(), lldb.SBProcess.eBroadcastBitStateChanged | lldb.SBProcess.eBroadcastBitSTDOUT | lldb.SBProcess.eBroadcastBitSTDERR)\n\
+    event = lldb.SBEvent()\n\
+    while True:\n\
+        if listener.WaitForEvent(1, event):\n\
+            state = process.GetStateFromEvent(event)\n\
+        else:\n\
+            state = lldb.eStateInvalid\n\
+\n\
+        stdout = process.GetSTDOUT(1024)\n\
+        while stdout:\n\
+            sys.stdout.write(stdout)\n\
+            stdout = process.GetSTDOUT(1024)\n\
+\n\
+        stderr = process.GetSTDERR(1024)\n\
+        while stderr:\n\
+            sys.stdout.write(stderr)\n\
+            stderr = process.GetSTDERR(1024)\n\
+\n\
+        if lldb.SBProcess.EventIsProcessEvent(event):\n\
+            if state == lldb.eStateExited:\n\
+                sys.exit(process.GetExitStatus())\n\
+            if state == lldb.eStateStopped:\n\
+                debugger.HandleCommand('frame select')\n\
+                debugger.HandleCommand('bt')\n\
+                sys.exit({exitcode_app_crash})\n\
 ")
 
 typedef struct am_device * AMDeviceRef;
@@ -106,6 +135,15 @@ int port = 12345;
 CFStringRef last_path = NULL;
 service_conn_t gdbfd;
 pid_t parent = 0;
+// PID of child process running lldb
+pid_t child = 0;
+// Signal sent from child to parent process when LLDB finishes.
+const int SIGLLDB = SIGUSR1;
+
+// Error codes we report on different failures, so scripts can distinguish between user app exit
+// codes and our exit codes. For non app errors we use codes in reserved 128-255 range.
+const int exitcode_error = 253;
+const int exitcode_app_crash = 254;
 
 Boolean path_exists(CFTypeRef path) {
     if (CFGetTypeID(path) == CFStringGetTypeID()) {
@@ -138,7 +176,7 @@ CFStringRef find_path(CFStringRef rootPath, CFStringRef namePattern, CFStringRef
     if (!(fpipe = (FILE *)popen(command, "r")))
     {
         perror("Error encountered while opening pipe");
-        exit(EXIT_FAILURE);
+        exit(exitcode_error);
     }
 
     char buffer[256] = { '\0' };
@@ -163,7 +201,7 @@ CFStringRef copy_xcode_dev_path() {
         if (!(fpipe = (FILE *)popen(command, "r")))
         {
             perror("Error encountered while opening pipe");
-            exit(EXIT_FAILURE);
+            exit(exitcode_error);
         }
 
         char buffer[256] = { '\0' };
@@ -269,7 +307,7 @@ CFStringRef copy_device_support_path(AMDeviceRef device) {
     if (path == NULL)
     {
         printf("[ !! ] Unable to locate DeviceSupport directory.\n[ !! ] This probably means you don't have Xcode installed, you will need to launch the app manually and logging output will not be shown!\n");
-        exit(1);
+        exit(exitcode_error);
     }
 
     return path;
@@ -294,7 +332,7 @@ CFStringRef copy_developer_disk_image_path(CFStringRef deviceSupportPath) {
     if (path == NULL)
     {
         printf("[ !! ] Unable to locate DeveloperDiskImage.dmg.\n[ !! ] This probably means you don't have Xcode installed, you will need to launch the app manually and logging output will not be shown!\n");
-        exit(1);
+        exit(exitcode_error);
     }
 
     return path;
@@ -342,7 +380,7 @@ void mount_developer_image(AMDeviceRef device) {
         printf("[ 95%%] Developer disk image already mounted\n");
     } else {
         printf("[ !! ] Unable to mount developer disk image. (%x)\n", result);
-        exit(1);
+        exit(exitcode_error);
     }
 
     CFRelease(image_path);
@@ -453,13 +491,19 @@ void write_lldb_prep_cmds(AMDeviceRef device, CFURLRef disk_app_url) {
     range.length = CFStringGetLength(cmds);
 
     CFMutableStringRef pmodule = CFStringCreateMutableCopy(NULL, 0, LLDB_FRUITSTRAP_MODULE);
+
+    CFRange rangeLLDB = { 0, CFStringGetLength(pmodule) };
+    CFStringRef exitcode_app_crash_str = CFStringCreateWithFormat(NULL, NULL, CFSTR("%d"), exitcode_app_crash);
+    CFStringFindAndReplace(pmodule, CFSTR("{exitcode_app_crash}"), exitcode_app_crash_str, rangeLLDB, 0);
+    rangeLLDB.length = CFStringGetLength(pmodule);
+
     if (args) {
         CFStringRef cf_args = CFStringCreateWithCString(NULL, args, kCFStringEncodingASCII);
         CFStringFindAndReplace(cmds, CFSTR("{args}"), cf_args, range, 0);
 
         //format the arguments 'arg1 arg2 ....' to an argument list ['arg1', 'arg2', ...]
         CFMutableStringRef argsListLLDB = CFStringCreateMutableCopy(NULL, 0, cf_args);
-        CFRange rangeLLDB = { 0, CFStringGetLength(argsListLLDB) };
+        rangeLLDB.length = CFStringGetLength(argsListLLDB);
         CFStringFindAndReplace(argsListLLDB, CFSTR(" "), CFSTR(" "), rangeLLDB, 0);//remove multiple spaces
         rangeLLDB.length = CFStringGetLength(argsListLLDB);
         CFStringFindAndReplace(argsListLLDB, CFSTR(" "), CFSTR("', '"), rangeLLDB, 0);
@@ -681,7 +725,10 @@ void killed(int signum) {
 
 void lldb_finished_handler(int signum)
 {
-    _exit(0);
+    int status = 0;
+    if (waitpid(child, &status, 0) == -1)
+        perror("waitpid failed");
+    _exit(WEXITSTATUS(status));
 }
 
 void bring_process_to_foreground() {
@@ -711,26 +758,40 @@ void launch_debugger(AMDeviceRef device, CFURLRef url) {
     printf("[100%%] Connecting to remote debug server\n");
     printf("-------------------------\n");
 
-    signal(SIGHUP, lldb_finished_handler);
     setpgid(getpid(), 0);
+    signal(SIGHUP, killed);
     signal(SIGINT, killed);
     signal(SIGTERM, killed);
+    // Need this before fork to avoid race conditions. For child process we remove this right after fork.
+    signal(SIGLLDB, lldb_finished_handler);
 
     parent = getpid();
     int pid = fork();
     if (pid == 0) {
+        signal(SIGHUP, SIG_DFL);
+        signal(SIGLLDB, SIG_DFL);
+        child = getpid();
         bring_process_to_foreground();
 
         char lldb_shell[400];
         sprintf(lldb_shell, LLDB_SHELL);
-
         if(device_id != NULL)
             strcat(lldb_shell, device_id);
-        system(lldb_shell);    // launch lldb
-        kill(parent, SIGHUP);  // "No. I am your father."
-        _exit(0);
-    }
 
+        int status = system(lldb_shell); // launch lldb
+        if (status == -1)
+            perror("failed launching lldb");
+
+        // Notify parent we're exiting
+        kill(parent, SIGLLDB);
+        // Pass lldb exit code
+        _exit(WEXITSTATUS(status));
+    } else if (pid > 0) {
+        child = pid;
+    } else {
+        perror("fork failed");
+        exit(exitcode_error);
+    }
 }
 
 void handle_device(AMDeviceRef device) {
@@ -797,8 +858,8 @@ void handle_device(AMDeviceRef device) {
         mach_error_t result = AMDeviceInstallApplication(installFd, path, options, install_callback, NULL);
         if (result != 0)
         {
-           printf("AMDeviceInstallApplication failed: %d\n", result);
-            exit(1);
+            printf("AMDeviceInstallApplication failed: %d\n", result);
+            exit(exitcode_error);
         }
 
         close(installFd);
@@ -825,7 +886,7 @@ void device_callback(struct am_device_notification_callback_info *info, void *ar
 void timeout_callback(CFRunLoopTimerRef timer, void *info) {
     if (!found_device) {
         printf("[....] Timed out waiting for device.\n");
-        exit(1);
+        exit(exitcode_error);
     }
 }
 
@@ -913,19 +974,19 @@ int main(int argc, char *argv[]) {
             break;
         case 'V':
             show_version();
-            return 1;
+            return exitcode_error;
         case 'p':
             port = atoi(optarg);
             break;
         default:
             usage(argv[0]);
-            return 1;
+            return exitcode_error;
         }
     }
 
     if (!app_path && !detect_only) {
         usage(argv[0]);
-        exit(0);
+        exit(exitcode_error);
     }
 
     if (unbuffered) {

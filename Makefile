@@ -1,6 +1,8 @@
+IOS_SDK_VERSION = 7.1
+
 IOS_CC = gcc -ObjC
-IOS_SDK = $(shell xcode-select --print-path)/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS6.1.sdk
 DEVICE_SUPPORT = $(shell xcode-select --print-path)/Platforms/iPhoneOS.platform/DeviceSupport
+IOS_SDK = $(shell xcode-select --print-path)/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS$(IOS_SDK_VERSION).sdk
 
 all: clean ios-deploy
 

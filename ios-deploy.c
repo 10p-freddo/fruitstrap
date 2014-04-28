@@ -858,7 +858,10 @@ void handle_device(AMDeviceRef device) {
         mach_error_t result = AMDeviceInstallApplication(installFd, path, options, install_callback, NULL);
         if (result != 0)
         {
-            printf("AMDeviceInstallApplication failed: %d\n", result);
+            char* error = "Unknown error.";
+            if (result == 0xe8008015)
+                error = "Your application failed code-signing checks. Check your certificates, provisioning profiles, and bundle ids.";
+            printf("AMDeviceInstallApplication failed: 0x%X: %s\n", result, error);
             exit(exitcode_error);
         }
 

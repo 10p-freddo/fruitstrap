@@ -741,6 +741,13 @@ void bring_process_to_foreground() {
     signal(SIGTTOU, SIG_DFL);
 }
 
+void setup_dummy_pipe_on_stdin(int pfd[2]) {
+    if (pipe(pfd) == -1)
+        perror("pipe failed");
+    if (dup2(pfd[0], STDIN_FILENO) == -1)
+        perror("dup2 failed");
+}
+
 void launch_debugger(AMDeviceRef device, CFURLRef url) {
     AMDeviceConnect(device);
     assert(AMDeviceIsPaired(device));
@@ -771,7 +778,17 @@ void launch_debugger(AMDeviceRef device, CFURLRef url) {
         signal(SIGHUP, SIG_DFL);
         signal(SIGLLDB, SIG_DFL);
         child = getpid();
-        bring_process_to_foreground();
+
+        int pfd[2] = {-1, -1};
+        if (isatty(STDIN_FILENO))
+            // If we are running on a terminal, then we need to bring process to foreground for input
+            // to work correctly on lldb's end.
+            bring_process_to_foreground();
+        else
+            // If lldb is running in a non terminal environment, then it freaks out spamming "^D" and
+            // "quit". It seems this is caused by read() on stdin returning EOF in lldb. To hack around
+            // this we setup a dummy pipe on stdin, so read() would block expecting "user's" input.
+            setup_dummy_pipe_on_stdin(pfd);
 
         char lldb_shell[400];
         sprintf(lldb_shell, LLDB_SHELL);
@@ -782,6 +799,8 @@ void launch_debugger(AMDeviceRef device, CFURLRef url) {
         if (status == -1)
             perror("failed launching lldb");
 
+        close(pfd[0]);
+        close(pfd[1]);
         // Notify parent we're exiting
         kill(parent, SIGLLDB);
         // Pass lldb exit code
@@ -858,7 +877,10 @@ void handle_device(AMDeviceRef device) {
         mach_error_t result = AMDeviceInstallApplication(installFd, path, options, install_callback, NULL);
         if (result != 0)
         {
-            printf("AMDeviceInstallApplication failed: %d\n", result);
+            char* error = "Unknown error.";
+            if (result == 0xe8008015)
+                error = "Your application failed code-signing checks. Check your certificates, provisioning profiles, and bundle ids.";
+            printf("AMDeviceInstallApplication failed: 0x%X: %s\n", result, error);
             exit(exitcode_error);
         }
 

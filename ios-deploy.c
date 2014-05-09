@@ -125,7 +125,7 @@ int AMDeviceSecureInstallApplication(int zero, AMDeviceRef device, CFURLRef url,
 int AMDeviceMountImage(AMDeviceRef device, CFStringRef image, CFDictionaryRef options, void *callback, int cbarg);
 mach_error_t AMDeviceLookupApplications(AMDeviceRef device, CFDictionaryRef options, CFDictionaryRef *result);
 
-bool found_device = false, debug = false, verbose = false, unbuffered = false, nostart = false, detect_only = false, install = true;
+bool found_device = false, debug = false, verbose = false, unbuffered = false, nostart = false, detect_only = false, install = true, uninstall = false;
 bool interactive = true;
 char *app_path = NULL;
 char *device_id = NULL;
@@ -813,6 +813,42 @@ void launch_debugger(AMDeviceRef device, CFURLRef url) {
     }
 }
 
+CFStringRef get_bundle_id(CFURLRef app_url)
+{
+    if (app_url == NULL)
+        return NULL;
+
+    CFURLRef url = CFURLCreateCopyAppendingPathComponent(NULL, app_url, CFSTR("Info.plist"), false);
+
+    if (url == NULL)
+        return NULL;
+
+    CFReadStreamRef stream = CFReadStreamCreateWithFile(NULL, url);
+    CFRelease(url);
+
+    if (stream == NULL)
+        return NULL;
+
+    CFPropertyListRef plist = NULL;
+    if (CFReadStreamOpen(stream) == TRUE) {
+        plist = CFPropertyListCreateWithStream(NULL, stream, 0,
+                                               kCFPropertyListImmutable, NULL, NULL);
+    }
+    CFReadStreamClose(stream);
+    CFRelease(stream);
+
+    if (plist == NULL)
+        return NULL;
+
+    const void *value = CFDictionaryGetValue(plist, CFSTR("CFBundleIdentifier"));
+    CFStringRef bundle_id = NULL;
+    if (value != NULL)
+        bundle_id = CFRetain(value);
+
+    CFRelease(plist);
+    return bundle_id;
+}
+
 void handle_device(AMDeviceRef device) {
     if (found_device) return; // handle one device only
     CFStringRef found_device_id = AMDeviceCopyDeviceIdentifier(device);
@@ -841,7 +877,29 @@ void handle_device(AMDeviceRef device) {
 
     CFRelease(relative_url);
 
+    if (uninstall) {
+        printf("------ Uninstall phase ------\n");
+
+        CFStringRef bundle_id = get_bundle_id(url);
+        if (bundle_id == NULL) {
+            printf("Error: Unable to get bundle id from package %s\n Uninstall failed\n", app_path);
+        } else {
+            AMDeviceConnect(device);
+            assert(AMDeviceIsPaired(device));
+            assert(AMDeviceValidatePairing(device) == 0);
+            assert(AMDeviceStartSession(device) == 0);
+
+            assert(AMDeviceSecureUninstallApplication(0, device, bundle_id, 0, NULL, 0) == 0);
+
+            assert(AMDeviceStopSession(device) == 0);
+            assert(AMDeviceDisconnect(device) == 0);
+
+            printf("[ OK ] Uninstalled package with bundle id %s\n", CFStringGetCStringPtr(bundle_id, CFStringGetSystemEncoding()));
+        }
+    }
+
     if(install) {
+        printf("------ Install phase ------\n");
         printf("[  0%%] Found device (%s), beginning install\n", CFStringGetCStringPtr(found_device_id, CFStringGetSystemEncoding()));
 
         AMDeviceConnect(device);
@@ -929,6 +987,7 @@ void usage(const char* app) {
         "  -v, --verbose                enable verbose output\n"
         "  -m, --noinstall              directly start debugging without app install (-d not required)\n"
         "  -p, --port <number>          port used for device, default: 12345 \n"
+        "  -r, --uninstall              uninstall the app before install (do not use with -m; app cache and data are cleared) \n"
         "  -V, --version                print the executable version \n",
         app);
 }
@@ -953,11 +1012,12 @@ int main(int argc, char *argv[]) {
         { "version", no_argument, NULL, 'V' },
         { "noinstall", no_argument, NULL, 'm' },
         { "port", required_argument, NULL, 'p' },
+        { "uninstall", no_argument, NULL, 'r' },
         { NULL, 0, NULL, 0 },
     };
     char ch;
 
-    while ((ch = getopt_long(argc, argv, "VmcdvunIi:b:a:t:g:x:p:", longopts, NULL)) != -1)
+    while ((ch = getopt_long(argc, argv, "VmcdvunrIi:b:a:t:g:x:p:", longopts, NULL)) != -1)
     {
         switch (ch) {
         case 'm':
@@ -1000,6 +1060,9 @@ int main(int argc, char *argv[]) {
         case 'p':
             port = atoi(optarg);
             break;
+        case 'r':
+            uninstall = 1;
+            break;
         default:
             usage(argv[0]);
             return exitcode_error;
@@ -1018,10 +1081,6 @@ int main(int argc, char *argv[]) {
 
     if (detect_only && timeout == 0) {
         timeout = 5;
-    }
-
-    if (!detect_only) {
-        printf("------ Install phase ------\n");
     }
 
     if (app_path) {

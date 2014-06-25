@@ -127,6 +127,11 @@ int AMDeviceMountImage(AMDeviceRef device, CFStringRef image, CFDictionaryRef op
 mach_error_t AMDeviceLookupApplications(AMDeviceRef device, CFDictionaryRef options, CFDictionaryRef *result);
 
 bool found_device = false, debug = false, verbose = false, unbuffered = false, nostart = false, detect_only = false, install = true, uninstall = false;
+bool command_only = false;
+char *command = NULL;
+char *target_filename = NULL;
+char *upload_pathname = NULL;
+char *bundle_id = NULL;
 bool interactive = true;
 char *app_path = NULL;
 char *device_id = NULL;
@@ -794,7 +799,7 @@ void launch_debugger(AMDeviceRef device, CFURLRef url) {
             perror("failed launching lldb");
 
         close(pfd[0]);
-        close(pfd[1]);
+            close(pfd[1]);
         // Notify parent we're exiting
         kill(parent, SIGLLDB);
         // Pass lldb exit code
@@ -843,6 +848,187 @@ CFStringRef get_bundle_id(CFURLRef app_url)
     return bundle_id;
 }
 
+void read_dir(service_conn_t afcFd, afc_connection* afc_conn_p, const char* dir)
+{
+    char *dir_ent;
+    
+    afc_connection afc_conn;
+    if (!afc_conn_p) {
+        afc_conn_p = &afc_conn;
+        AFCConnectionOpen(afcFd, 0, &afc_conn_p);
+    }
+    
+    printf("%s\n", dir);
+    
+    afc_dictionary afc_dict;
+    afc_dictionary* afc_dict_p = &afc_dict;
+    AFCFileInfoOpen(afc_conn_p, dir, &afc_dict_p);
+    
+    afc_directory afc_dir;
+    afc_directory* afc_dir_p = &afc_dir;
+    afc_error_t err = AFCDirectoryOpen(afc_conn_p, dir, &afc_dir_p);
+    
+    if (err != 0)
+    {
+        // Couldn't open dir - was probably a file
+        return;
+    }
+    
+    while(true) {
+        err = AFCDirectoryRead(afc_conn_p, afc_dir_p, &dir_ent);
+        
+        if (!dir_ent)
+            break;
+        
+        if (strcmp(dir_ent, ".") == 0 || strcmp(dir_ent, "..") == 0)
+            continue;
+        
+        char* dir_joined = malloc(strlen(dir) + strlen(dir_ent) + 2);
+        strcpy(dir_joined, dir);
+        if (dir_joined[strlen(dir)-1] != '/')
+            strcat(dir_joined, "/");
+        strcat(dir_joined, dir_ent);
+        read_dir(afcFd, afc_conn_p, dir_joined);
+        free(dir_joined);
+    }
+    
+    AFCDirectoryClose(afc_conn_p, afc_dir_p);
+}
+
+
+// Used to send files to app-specific sandbox (Documents dir)
+service_conn_t start_house_arrest_service(AMDeviceRef device) {
+    AMDeviceConnect(device);
+    assert(AMDeviceIsPaired(device));
+    assert(AMDeviceValidatePairing(device) == 0);
+    assert(AMDeviceStartSession(device) == 0);
+    
+    service_conn_t houseFd;
+    
+    if (bundle_id == NULL) {
+        printf("Bundle id is not specified\n");
+        exit(1);
+    }
+    
+    CFStringRef cf_bundle_id = CFStringCreateWithCString(NULL, bundle_id, kCFStringEncodingASCII);
+    if (AMDeviceStartHouseArrestService(device, cf_bundle_id, 0, &houseFd, 0) != 0)
+    {
+        printf("Unable to find bundle with id: %s\n", bundle_id);
+        exit(1);
+    }
+    
+    assert(AMDeviceStopSession(device) == 0);
+    assert(AMDeviceDisconnect(device) == 0);
+    CFRelease(cf_bundle_id);
+    
+    return houseFd;
+}
+
+char* get_filename_from_path(char* path)
+{
+    char *ptr = path + strlen(path);
+    while (ptr > path)
+    {
+        if (*ptr == '/')
+            break;
+        --ptr;
+    }
+    if (ptr+1 >= path+strlen(path))
+        return NULL;
+    if (ptr == path)
+        return ptr;
+    return ptr+1;
+}
+
+void* read_file_to_memory(char * path, size_t* file_size)
+{
+    struct stat buf;
+    int err = stat(path, &buf);
+    if (err < 0)
+    {
+        return NULL;
+    }
+    
+    *file_size = buf.st_size;
+    FILE* fd = fopen(path, "r");
+    char* content = malloc(*file_size);
+    if (fread(content, *file_size, 1, fd) != 1)
+    {
+        fclose(fd);
+        return NULL;
+    }
+    fclose(fd);
+    return content;
+}
+
+void list_files(AMDeviceRef device)
+{
+    service_conn_t houseFd = start_house_arrest_service(device);
+    
+    afc_connection afc_conn;
+    afc_connection* afc_conn_p = &afc_conn;
+    AFCConnectionOpen(houseFd, 0, &afc_conn_p);
+    
+    read_dir(houseFd, afc_conn_p, "/");
+}
+
+void upload_file(AMDeviceRef device) {
+    service_conn_t houseFd = start_house_arrest_service(device);
+    
+    afc_file_ref file_ref;
+    
+    afc_connection afc_conn;
+    afc_connection* afc_conn_p = &afc_conn;
+    AFCConnectionOpen(houseFd, 0, &afc_conn_p);
+    
+    //        read_dir(houseFd, NULL, "/");
+    
+    if (!target_filename)
+    {
+        target_filename = get_filename_from_path(upload_pathname);
+    }
+
+    size_t file_size;
+    void* file_content = read_file_to_memory(upload_pathname, &file_size);
+    
+    if (!file_content)
+    {
+        printf("Could not open file: %s\n", upload_pathname);
+        exit(-1);
+    }
+
+    // Make sure the directory was created
+    {
+        char *dirpath = strdup(target_filename);
+        char *c = dirpath, *lastSlash = dirpath;
+        while(*c) {
+            if(*c == '/') {
+                lastSlash = c;
+            }
+            c++;
+        }
+        *lastSlash = '\0';
+        assert(AFCDirectoryCreate(afc_conn_p, dirpath) == 0);
+    }
+    
+
+    int ret = AFCFileRefOpen(afc_conn_p, target_filename, 3, &file_ref);
+    if (ret == 0x000a) {
+        printf("Cannot write to %s. Permission error.\n", target_filename);
+        exit(1);
+    }
+    if (ret == 0x0009) {
+        printf("Target %s is a directory.\n", target_filename);
+        exit(1);
+    }
+    assert(ret == 0);
+    assert(AFCFileRefWrite(afc_conn_p, file_ref, file_content, file_size) == 0);
+    assert(AFCFileRefClose(afc_conn_p, file_ref) == 0);
+    assert(AFCConnectionClose(afc_conn_p) == 0);
+    
+    free(file_content);
+}
+
 void handle_device(AMDeviceRef device) {
     if (found_device) return; // handle one device only
     CFStringRef found_device_id = AMDeviceCopyDeviceIdentifier(device);
@@ -859,6 +1045,15 @@ void handle_device(AMDeviceRef device) {
 
     if (detect_only) {
         printf("[....] Found device (%s).\n", CFStringGetCStringPtr(found_device_id, CFStringGetSystemEncoding()));
+        exit(0);
+    }
+    
+    if (command_only) {
+        if (strcmp("list", command) == 0) {
+            list_files(device);
+        } else if (strcmp("upload", command) == 0) {
+            upload_file(device);
+        }
         exit(0);
     }
 
@@ -982,6 +1177,10 @@ void usage(const char* app) {
         "  -m, --noinstall              directly start debugging without app install (-d not required)\n"
         "  -p, --port <number>          port used for device, default: 12345 \n"
         "  -r, --uninstall              uninstall the app before install (do not use with -m; app cache and data are cleared) \n"
+        "  -1, --bundle_id <bundle id>  specify bundle id for list and upload\n"
+        "  -l, --list                   list files\n"
+        "  -o, --upload <file>          upload file\n"
+        "  -2, --to <target pathname>	use together with upload file. specify target for upload\n"
         "  -V, --version                print the executable version \n",
         app);
 }
@@ -1007,11 +1206,15 @@ int main(int argc, char *argv[]) {
         { "noinstall", no_argument, NULL, 'm' },
         { "port", required_argument, NULL, 'p' },
         { "uninstall", no_argument, NULL, 'r' },
+        { "list", no_argument, NULL, 'l' },
+        { "bundle_id", required_argument, NULL, '1'},
+        { "upload", required_argument, NULL, 'o'},
+        { "to", required_argument, NULL, '2'},
         { NULL, 0, NULL, 0 },
     };
     char ch;
 
-    while ((ch = getopt_long(argc, argv, "VmcdvunrIi:b:a:t:g:x:p:", longopts, NULL)) != -1)
+    while ((ch = getopt_long(argc, argv, "VmcdvunlrIi:b:a:t:g:x:p:1:2:o:", longopts, NULL)) != -1)
     {
         switch (ch) {
         case 'm':
@@ -1057,13 +1260,28 @@ int main(int argc, char *argv[]) {
         case 'r':
             uninstall = 1;
             break;
+        case '1':
+            bundle_id = optarg;
+            break;
+        case '2':
+            target_filename = optarg;
+            break;
+        case 'o':
+            command_only = true;
+            upload_pathname = optarg;
+            command = "upload";
+            break;
+        case 'l':
+            command_only = true;
+            command = "list";
+            break;
         default:
             usage(argv[0]);
             return exitcode_error;
         }
     }
 
-    if (!app_path && !detect_only) {
+    if (!app_path && !detect_only && !command_only) {
         usage(argv[0]);
         exit(exitcode_error);
     }
@@ -1097,3 +1315,4 @@ int main(int argc, char *argv[]) {
     AMDeviceNotificationSubscribe(&device_callback, 0, 0, NULL, &notify);
     CFRunLoopRun();
 }
+

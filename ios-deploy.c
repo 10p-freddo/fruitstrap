@@ -57,6 +57,7 @@ const char* lldb_prep_noninteractive_cmds = "\
 #define LLDB_FRUITSTRAP_MODULE CFSTR("\
 import lldb\n\
 import sys\n\
+import shlex\n\
 \n\
 def connect_command(debugger, command, result, internal_dict):\n\
     # These two are passed in by the script which loads us\n\
@@ -86,7 +87,7 @@ def run_command(debugger, command, result, internal_dict):\n\
     device_app = internal_dict['fruitstrap_device_app']\n\
     error = lldb.SBError()\n\
     lldb.target.modules[0].SetPlatformFileSpec(lldb.SBFileSpec(device_app))\n\
-    lldb.target.Launch(lldb.SBLaunchInfo(['{args}']), error)\n\
+    lldb.target.Launch(lldb.SBLaunchInfo(shlex.split('{args}')), error)\n\
     print str(error)\n\
 \n\
 def autoexit_command(debugger, command, result, internal_dict):\n\
@@ -500,15 +501,8 @@ void write_lldb_prep_cmds(AMDeviceRef device, CFURLRef disk_app_url) {
     if (args) {
         CFStringRef cf_args = CFStringCreateWithCString(NULL, args, kCFStringEncodingASCII);
         CFStringFindAndReplace(cmds, CFSTR("{args}"), cf_args, range, 0);
-
-        //format the arguments 'arg1 arg2 ....' to an argument list ['arg1', 'arg2', ...]
-        CFMutableStringRef argsListLLDB = CFStringCreateMutableCopy(NULL, 0, cf_args);
-        rangeLLDB.length = CFStringGetLength(argsListLLDB);
-        CFStringFindAndReplace(argsListLLDB, CFSTR(" "), CFSTR(" "), rangeLLDB, 0);//remove multiple spaces
-        rangeLLDB.length = CFStringGetLength(argsListLLDB);
-        CFStringFindAndReplace(argsListLLDB, CFSTR(" "), CFSTR("', '"), rangeLLDB, 0);
         rangeLLDB.length = CFStringGetLength(pmodule);
-        CFStringFindAndReplace(pmodule, CFSTR("{args}"), argsListLLDB, rangeLLDB, 0);
+        CFStringFindAndReplace(pmodule, CFSTR("{args}"), cf_args, rangeLLDB, 0);
 
         CFRelease(cf_args);
     } else {

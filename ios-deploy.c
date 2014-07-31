@@ -121,10 +121,12 @@ def autoexit_command(debugger, command, result, internal_dict):\n\
 ")
 
 typedef struct am_device * AMDeviceRef;
+mach_error_t AMDeviceSecureStartService(struct am_device *device, CFStringRef service_name, unsigned int *unknown, service_conn_t *handle);
 int AMDeviceSecureTransferPath(int zero, AMDeviceRef device, CFURLRef url, CFDictionaryRef options, void *callback, int cbarg);
 int AMDeviceSecureInstallApplication(int zero, AMDeviceRef device, CFURLRef url, CFDictionaryRef options, void *callback, int cbarg);
 int AMDeviceMountImage(AMDeviceRef device, CFStringRef image, CFDictionaryRef options, void *callback, int cbarg);
 mach_error_t AMDeviceLookupApplications(AMDeviceRef device, CFDictionaryRef options, CFDictionaryRef *result);
+int AMDeviceGetInterfaceType(struct am_device *device);
 
 bool found_device = false, debug = false, verbose = false, unbuffered = false, nostart = false, detect_only = false, install = true, uninstall = false;
 bool command_only = false;
@@ -145,6 +147,7 @@ pid_t parent = 0;
 pid_t child = 0;
 // Signal sent from child to parent process when LLDB finishes.
 const int SIGLLDB = SIGUSR1;
+AMDeviceRef best_device_match = NULL;
 
 // Error codes we report on different failures, so scripts can distinguish between user app exit
 // codes and our exit codes. For non app errors we use codes in reserved 128-255 range.
@@ -265,6 +268,125 @@ CFStringRef copy_xcode_path_for(CFStringRef subPath, CFStringRef search) {
     } else {
         CFRelease(path);
         return NULL;
+    }
+}
+
+// Please ensure that device is connected or the name will be unknown
+const CFStringRef get_device_hardware_name(const AMDeviceRef device) {
+    CFStringRef model = AMDeviceCopyValue(device, 0, CFSTR("HardwareModel"));
+    const char *hwmodel = CFStringGetCStringPtr(model, CFStringGetSystemEncoding());
+
+    if (hwmodel && !strcmp("M68AP", hwmodel))
+        return CFSTR("iPhone");
+    if (hwmodel && !strcmp("N45AP", hwmodel))
+        return CFSTR("iPod touch");
+    if (hwmodel && !strcmp("N82AP", hwmodel))
+        return CFSTR("iPhone 3G");
+    if (hwmodel && !strcmp("N72AP", hwmodel))
+        return CFSTR("iPod touch 2G");
+    if (hwmodel && !strcmp("N88AP", hwmodel))
+        return CFSTR("iPhone 3GS");
+    if (hwmodel && !strcmp("N18AP", hwmodel))
+        return CFSTR("iPod touch 3G");
+    if (hwmodel && !strcmp("K48AP", hwmodel))
+        return CFSTR("iPad");
+    if (hwmodel && !strcmp("N90AP", hwmodel))
+        return CFSTR("iPhone 4 (GSM)");
+    if (hwmodel && !strcmp("N81AP", hwmodel))
+        return CFSTR("iPod touch 4G");
+    if (hwmodel && !strcmp("K66AP", hwmodel))
+        return CFSTR("Apple TV 2G");
+    if (hwmodel && !strcmp("N92AP", hwmodel))
+        return CFSTR("iPhone 4 (CDMA)");
+    if (hwmodel && !strcmp("N90BAP", hwmodel))
+        return CFSTR("iPhone 4 (GSM, revision A)");
+    if (hwmodel && !strcmp("K93AP", hwmodel))
+        return CFSTR("iPad 2");
+    if (hwmodel && !strcmp("K94AP", hwmodel))
+        return CFSTR("iPad 2 (GSM)");
+    if (hwmodel && !strcmp("K95AP", hwmodel))
+        return CFSTR("iPad 2 (CDMA)");
+    if (hwmodel && !strcmp("K93AAP", hwmodel))
+        return CFSTR("iPad 2 (Wi-Fi, revision A)");
+    if (hwmodel && !strcmp("P105AP", hwmodel))
+        return CFSTR("iPad mini");
+    if (hwmodel && !strcmp("P106AP", hwmodel))
+        return CFSTR("iPad mini (GSM)");
+    if (hwmodel && !strcmp("P107AP", hwmodel))
+        return CFSTR("iPad mini (CDMA)");
+    if (hwmodel && !strcmp("N94AP", hwmodel))
+        return CFSTR("iPhone 4S");
+    if (hwmodel && !strcmp("N41AP", hwmodel))
+        return CFSTR("iPhone 5 (GSM)");
+    if (hwmodel && !strcmp("N42AP", hwmodel))
+        return CFSTR("iPhone 5 (Global/CDMA)");
+    if (hwmodel && !strcmp("N48AP", hwmodel))
+        return CFSTR("iPhone 5c (GSM)");
+    if (hwmodel && !strcmp("N49AP", hwmodel))
+        return CFSTR("iPhone 5c (Global/CDMA)");
+    if (hwmodel && !strcmp("N51AP", hwmodel))
+        return CFSTR("iPhone 5s (GSM)");
+    if (hwmodel && !strcmp("N53AP", hwmodel))
+        return CFSTR("iPhone 5s (Global/CDMA)");
+    if (hwmodel && !strcmp("J1AP", hwmodel))
+        return CFSTR("iPad 3");
+    if (hwmodel && !strcmp("J2AP", hwmodel))
+        return CFSTR("iPad 3 (GSM)");
+    if (hwmodel && !strcmp("J2AAP", hwmodel))
+        return CFSTR("iPad 3 (CDMA)");
+    if (hwmodel && !strcmp("P101AP", hwmodel))
+        return CFSTR("iPad 4");
+    if (hwmodel && !strcmp("P102AP", hwmodel))
+        return CFSTR("iPad 4 (GSM)");
+    if (hwmodel && !strcmp("P103AP", hwmodel))
+        return CFSTR("iPad 4 (CDMA)");
+    if (hwmodel && !strcmp("N78AP", hwmodel))
+        return CFSTR("iPod touch 5G");
+    if (hwmodel && !strcmp("J33AP", hwmodel))
+        return CFSTR("Apple TV 3G");
+    if (hwmodel && !strcmp("J33IAP", hwmodel))
+        return CFSTR("Apple TV 3.1G");
+
+    return CFSTR("Unknown Device");
+}
+
+CFStringRef get_device_full_name(const AMDeviceRef device) {
+    CFStringRef full_name = NULL,
+                device_udid = AMDeviceCopyDeviceIdentifier(device),
+                device_name = NULL,
+                model_name = NULL;
+
+    AMDeviceConnect(device);
+    
+    device_name = AMDeviceCopyValue(device, 0, CFSTR("DeviceName")),
+    model_name = get_device_hardware_name(device);
+
+    if(device_name != NULL && model_name != NULL)
+        full_name = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@ '%@' (%@)"), model_name, device_name, device_udid);
+    else
+        full_name = CFStringCreateWithFormat(NULL, NULL, CFSTR("(%@)"), device_udid);
+
+    AMDeviceDisconnect(device);
+
+    if(device_udid != NULL)
+        CFRelease(device_udid);
+    if(device_name != NULL)
+        CFRelease(device_name);
+    if(model_name != NULL)
+        CFRelease(model_name);
+
+    return full_name;
+}
+
+CFStringRef get_device_interface_name(const AMDeviceRef device) {
+    // AMDeviceGetInterfaceType(device) 0=Unknown, 1 = Direct/USB, 2 = Indirect/WIFI
+    switch(AMDeviceGetInterfaceType(device)) {
+        case 1:
+            return CFSTR("USB");
+        case 2:
+            return CFSTR("WIFI");
+        default:
+            return CFSTR("Unknown Connection");
     }
 }
 
@@ -748,12 +870,23 @@ void setup_dummy_pipe_on_stdin(int pfd[2]) {
 }
 
 void launch_debugger(AMDeviceRef device, CFURLRef url) {
+    CFStringRef device_full_name = get_device_full_name(device),
+                device_interface_name = get_device_interface_name(device);
+
     AMDeviceConnect(device);
     assert(AMDeviceIsPaired(device));
     assert(AMDeviceValidatePairing(device) == 0);
     assert(AMDeviceStartSession(device) == 0);
 
     printf("------ Debug phase ------\n");
+
+    if(AMDeviceGetInterfaceType(device) == 2)
+    {
+        printf("Cannot debug %s over %s.\n", CFStringGetCStringPtr(device_full_name, CFStringGetSystemEncoding()), CFStringGetCStringPtr(device_interface_name, CFStringGetSystemEncoding()));
+        exit(0);
+    }
+
+    printf("Starting debug of %s connected through %s...\n", CFStringGetCStringPtr(device_full_name, CFStringGetSystemEncoding()), CFStringGetCStringPtr(device_interface_name, CFStringGetSystemEncoding()));
 
     mount_developer_image(device);      // put debugserver on the device
     start_remote_debug_server(device);  // start debugserver
@@ -1030,8 +1163,12 @@ void upload_file(AMDeviceRef device) {
 }
 
 void handle_device(AMDeviceRef device) {
-    if (found_device) return; // handle one device only
-    CFStringRef found_device_id = AMDeviceCopyDeviceIdentifier(device);
+    if (found_device) 
+        return; // handle one device only
+
+    CFStringRef found_device_id = AMDeviceCopyDeviceIdentifier(device),
+                device_full_name = get_device_full_name(device),
+                device_interface_name = get_device_interface_name(device);
 
     if (device_id != NULL) {
         if(strcmp(device_id, CFStringGetCStringPtr(found_device_id, CFStringGetSystemEncoding())) == 0) {
@@ -1044,7 +1181,7 @@ void handle_device(AMDeviceRef device) {
     }
 
     if (detect_only) {
-        printf("[....] Found device (%s).\n", CFStringGetCStringPtr(found_device_id, CFStringGetSystemEncoding()));
+        printf("[....] Found %s connected through %s.\n", CFStringGetCStringPtr(device_full_name, CFStringGetSystemEncoding()), CFStringGetCStringPtr(device_interface_name, CFStringGetSystemEncoding()));
         exit(0);
     }
     
@@ -1089,7 +1226,7 @@ void handle_device(AMDeviceRef device) {
 
     if(install) {
         printf("------ Install phase ------\n");
-        printf("[  0%%] Found device (%s), beginning install\n", CFStringGetCStringPtr(found_device_id, CFStringGetSystemEncoding()));
+        printf("[  0%%] Found %s connected through %s, beginning install\n", CFStringGetCStringPtr(device_full_name, CFStringGetSystemEncoding()), CFStringGetCStringPtr(device_interface_name, CFStringGetSystemEncoding()));
 
         AMDeviceConnect(device);
         assert(AMDeviceIsPaired(device));
@@ -1097,31 +1234,37 @@ void handle_device(AMDeviceRef device) {
         assert(AMDeviceStartSession(device) == 0);
 
 
-
+        // NOTE: the secure version doesn't seem to require us to start the AFC service
         service_conn_t afcFd;
-        assert(AMDeviceStartService(device, CFSTR("com.apple.afc"), &afcFd, NULL) == 0);
+        assert(AMDeviceSecureStartService(device, CFSTR("com.apple.afc"), NULL, &afcFd) == 0);
         assert(AMDeviceStopSession(device) == 0);
         assert(AMDeviceDisconnect(device) == 0);
-        assert(AMDeviceTransferApplication(afcFd, path, NULL, transfer_callback, NULL) == 0);
-
-        close(afcFd);
 
         CFStringRef keys[] = { CFSTR("PackageType") };
         CFStringRef values[] = { CFSTR("Developer") };
         CFDictionaryRef options = CFDictionaryCreate(NULL, (const void **)&keys, (const void **)&values, 1, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
 
+        //assert(AMDeviceTransferApplication(afcFd, path, NULL, transfer_callback, NULL) == 0);
+        assert(AMDeviceSecureTransferPath(0, device, url, options, transfer_callback, 0)==0);
+
+        close(afcFd);
+
+        
+
         AMDeviceConnect(device);
         assert(AMDeviceIsPaired(device));
         assert(AMDeviceValidatePairing(device) == 0);
         assert(AMDeviceStartSession(device) == 0);
 
-        service_conn_t installFd;
-        assert(AMDeviceStartService(device, CFSTR("com.apple.mobile.installation_proxy"), &installFd, NULL) == 0);
+        // // NOTE: the secure version doesn't seem to require us to start the installation_proxy service
+        // // Although I can't find it right now, I in some code that the first param of AMDeviceSecureInstallApplication was a "dontStartInstallProxy"
+        // // implying this is done for us by iOS already
 
-        assert(AMDeviceStopSession(device) == 0);
-        assert(AMDeviceDisconnect(device) == 0);
+        //service_conn_t installFd;
+        //assert(AMDeviceSecureStartService(device, CFSTR("com.apple.mobile.installation_proxy"), NULL, &installFd) == 0);
 
-        mach_error_t result = AMDeviceInstallApplication(installFd, path, options, install_callback, NULL);
+        //mach_error_t result = AMDeviceInstallApplication(installFd, path, options, install_callback, NULL);
+        mach_error_t result = AMDeviceSecureInstallApplication(0, device, url, options, install_callback, 0);
         if (result != 0)
         {
             char* error = "Unknown error.";
@@ -1131,7 +1274,10 @@ void handle_device(AMDeviceRef device) {
             exit(exitcode_error);
         }
 
-        close(installFd);
+        // close(installFd);
+
+        assert(AMDeviceStopSession(device) == 0);
+        assert(AMDeviceDisconnect(device) == 0);
 
         CFRelease(path);
         CFRelease(options);
@@ -1139,14 +1285,21 @@ void handle_device(AMDeviceRef device) {
         printf("[100%%] Installed package %s\n", app_path);
     }
 
-    if (!debug) exit(0); // no debug phase
+    if (!debug) 
+        exit(0); // no debug phase
+    
     launch_debugger(device, url);
 }
 
 void device_callback(struct am_device_notification_callback_info *info, void *arg) {
     switch (info->msg) {
         case ADNCI_MSG_CONNECTED:
-            handle_device(info->dev);
+            if(device_id != NULL || !debug || AMDeviceGetInterfaceType(info->dev) != 2) {
+                handle_device(info->dev);
+            } else if(best_device_match == NULL) {
+                best_device_match = info->dev; 
+                CFRetain(best_device_match);
+            }
         default:
             break;
     }
@@ -1154,8 +1307,17 @@ void device_callback(struct am_device_notification_callback_info *info, void *ar
 
 void timeout_callback(CFRunLoopTimerRef timer, void *info) {
     if (!found_device) {
-        printf("[....] Timed out waiting for device.\n");
-        exit(exitcode_error);
+        if(best_device_match != NULL) {
+            handle_device(best_device_match);
+
+            CFRelease(best_device_match);
+            best_device_match = NULL;
+        }
+
+        if(!found_device) {
+            printf("[....] Timed out waiting for device.\n");
+            exit(exitcode_error);
+        }
     }
 }
 

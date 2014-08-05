@@ -16,7 +16,7 @@
 #include <netinet/tcp.h>
 #include "MobileDevice.h"
 
-#define APP_VERSION    "1.0.9"
+#define APP_VERSION    "1.0.10"
 #define PREP_CMDS_PATH "/tmp/fruitstrap-lldb-prep-cmds-"
 #define LLDB_SHELL "lldb -s " PREP_CMDS_PATH
 
@@ -35,6 +35,7 @@
     command script add -f {python_command}.connect_command connect\n\
     command script add -s asynchronous -f {python_command}.run_command run\n\
     command script add -s asynchronous -f {python_command}.autoexit_command autoexit\n\
+    command script add -s asynchronous -f {python_command}.safequit_command safequit\n\
     connect\n\
 ")
 
@@ -42,6 +43,12 @@ const char* lldb_prep_no_cmds = "";
 
 const char* lldb_prep_interactive_cmds = "\
     run\n\
+";
+
+const char* lldb_prep_noninteractive_justlaunch_cmds = "\
+    run\n\
+    detach\n\
+    safequit\n\
 ";
 
 const char* lldb_prep_noninteractive_cmds = "\
@@ -88,7 +95,15 @@ def run_command(debugger, command, result, internal_dict):\n\
     error = lldb.SBError()\n\
     lldb.target.modules[0].SetPlatformFileSpec(lldb.SBFileSpec(device_app))\n\
     lldb.target.Launch(lldb.SBLaunchInfo(shlex.split('{args}')), error)\n\
-    print str(error)\n\
+    lockedstr = ': Locked'\n\
+    if lockedstr in str(error):\n\
+       print('\\nDevice Locked\\n')\n\
+       sys.exit(254)\n\
+    else:\n\
+       print(str(error))\n\
+\n\
+def safequit_command(debugger, command, result, internal_dict):\n\
+    sys.exit(0);\n\
 \n\
 def autoexit_command(debugger, command, result, internal_dict):\n\
     process = lldb.target.process\n\
@@ -135,6 +150,7 @@ char *target_filename = NULL;
 char *upload_pathname = NULL;
 char *bundle_id = NULL;
 bool interactive = true;
+bool justlaunch = false;
 char *app_path = NULL;
 char *device_id = NULL;
 char *args = NULL;
@@ -688,7 +704,12 @@ void write_lldb_prep_cmds(AMDeviceRef device, CFURLRef disk_app_url) {
     // Write additional commands based on mode we're running in
     const char* extra_cmds;
     if (!interactive)
-        extra_cmds = lldb_prep_noninteractive_cmds;
+    {
+        if (justlaunch)
+          extra_cmds = lldb_prep_noninteractive_justlaunch_cmds;
+        else
+          extra_cmds = lldb_prep_noninteractive_cmds;
+    }
     else if (nostart)
         extra_cmds = lldb_prep_no_cmds;
     else
@@ -1335,6 +1356,7 @@ void usage(const char* app) {
         "  -x, --gdbexec <file>         GDB commands script file\n"
         "  -n, --nostart                do not start the app when debugging\n"
         "  -I, --noninteractive         start in non interactive mode (quit when app crashes or exits)\n"
+        "  -L, --justlaunch             just launch the app and exit lldb\n"
         "  -v, --verbose                enable verbose output\n"
         "  -m, --noinstall              directly start debugging without app install (-d not required)\n"
         "  -p, --port <number>          port used for device, default: 12345 \n"
@@ -1363,6 +1385,7 @@ int main(int argc, char *argv[]) {
         { "unbuffered", no_argument, NULL, 'u' },
         { "nostart", no_argument, NULL, 'n' },
         { "noninteractive", no_argument, NULL, 'I' },
+        { "justlaunch", no_argument, NULL, 'L' },
         { "detect", no_argument, NULL, 'c' },
         { "version", no_argument, NULL, 'V' },
         { "noinstall", no_argument, NULL, 'm' },
@@ -1376,7 +1399,7 @@ int main(int argc, char *argv[]) {
     };
     char ch;
 
-    while ((ch = getopt_long(argc, argv, "VmcdvunlrIi:b:a:t:g:x:p:1:2:o:", longopts, NULL)) != -1)
+    while ((ch = getopt_long(argc, argv, "VmcdvunlrILi:b:a:t:g:x:p:1:2:o:", longopts, NULL)) != -1)
     {
         switch (ch) {
         case 'm':
@@ -1409,6 +1432,10 @@ int main(int argc, char *argv[]) {
             break;
         case 'I':
             interactive = false;
+            break;
+        case 'L':
+            interactive = false;
+            justlaunch = true;
             break;
         case 'c':
             detect_only = true;

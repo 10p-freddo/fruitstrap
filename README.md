@@ -10,28 +10,29 @@ Install and debug iPhone apps without using Xcode. Designed to work on unjailbro
 
 ## Usage
 
-    Usage: ./ios-deploy [OPTION]...
-      -d, --debug                  launch the app in GDB after installation
-      -i, --id <device_id>         the id of the device to connect to
-      -c, --detect                 only detect if the device is connected
-      -b, --bundle <bundle.app>    the path to the app bundle to be installed
-      -a, --args <args>            command line arguments to pass to the app when launching it
-      -t, --timeout <timeout>      number of seconds to wait for a device to be connected
-      -u, --unbuffered             don't buffer stdout
-      -g, --gdbargs <args>         extra arguments to pass to GDB when starting the debugger
-      -x, --gdbexec <file>         GDB commands script file
-      -n, --nostart                do not start the app when debugging
-      -I, --noninteractive         start in non interactive mode (quit when app crashes or exits)
-      -v, --verbose                enable verbose output
-      -m, --noinstall              directly start debugging without app install (-d not required)
-      -p, --port <number>          port used for device, default: 12345 
-      -r, --uninstall              uninstall the app before install (do not use with -m; app cache and data are cleared) 
-      -1, --bundle_id <bundle id>  specify bundle id for list and upload
-      -l, --list                   list files
-      -o, --upload <file>          upload file
-      -2, --to <target pathname>	use together with upload file. specify target for upload
-      -V, --version                print the executable version 
-
+	Usage: ./ios-deploy [OPTION]...
+	  -d, --debug                  launch the app in GDB after installation
+	  -i, --id <device_id>         the id of the device to connect to
+	  -c, --detect                 only detect if the device is connected
+	  -b, --bundle <bundle.app>    the path to the app bundle to be installed
+	  -a, --args <args>            command line arguments to pass to the app when launching it
+	  -t, --timeout <timeout>      number of seconds to wait for a device to be connected
+	  -u, --unbuffered             don't buffer stdout
+	  -g, --gdbargs <args>         extra arguments to pass to GDB when starting the debugger
+	  -x, --gdbexec <file>         GDB commands script file
+	  -n, --nostart                do not start the app when debugging
+	  -I, --noninteractive         start in non interactive mode (quit when app crashes or exits)
+	  -L, --justlaunch             just launch the app and exit lldb
+	  -v, --verbose                enable verbose output
+	  -m, --noinstall              directly start debugging without app install (-d not required)
+	  -p, --port <number>          port used for device, default: 12345 
+	  -r, --uninstall              uninstall the app before install (do not use with -m; app cache and data are cleared) 
+	  -1, --bundle_id <bundle id>  specify bundle id for list and upload
+	  -l, --list                   list files
+	  -o, --upload <file>          upload file
+	  -2, --to <target pathname>	use together with upload file. specify target for upload
+	  -V, --version                print the executable version
+	  
 ## Demo
 
 * The included demo.app represents the minimum required to get code running on iOS.

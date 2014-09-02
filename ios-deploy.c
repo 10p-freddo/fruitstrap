@@ -292,6 +292,8 @@ const CFStringRef get_device_hardware_name(const AMDeviceRef device) {
     CFStringRef model = AMDeviceCopyValue(device, 0, CFSTR("HardwareModel"));
     const char *hwmodel = CFStringGetCStringPtr(model, CFStringGetSystemEncoding());
 
+    printf("-->Hardware model: %s\n", hwmodel);
+
     if (hwmodel && !strcmp("M68AP", hwmodel))
         return CFSTR("iPhone");
     if (hwmodel && !strcmp("N45AP", hwmodel))
@@ -358,6 +360,8 @@ const CFStringRef get_device_hardware_name(const AMDeviceRef device) {
         return CFSTR("iPad 4 (CDMA)");
     if (hwmodel && !strcmp("N78AP", hwmodel))
         return CFSTR("iPod touch 5G");
+    if (hwmodel && !strcmp("A1509", hwmodel))
+        return CFSTR("iPod touch 5G");
     if (hwmodel && !strcmp("J33AP", hwmodel))
         return CFSTR("Apple TV 3G");
     if (hwmodel && !strcmp("J33IAP", hwmodel))
@@ -366,21 +370,53 @@ const CFStringRef get_device_hardware_name(const AMDeviceRef device) {
     return CFSTR("Unknown Device");
 }
 
+char * MYCFStringCopyUTF8String(CFStringRef aString) {
+  if (aString == NULL) {
+    return NULL;
+  }
+
+  CFIndex length = CFStringGetLength(aString);
+  CFIndex maxSize =
+  CFStringGetMaximumSizeForEncoding(length,
+                                    kCFStringEncodingUTF8);
+  char *buffer = (char *)malloc(maxSize);
+  if (CFStringGetCString(aString, buffer, maxSize,
+                         kCFStringEncodingUTF8)) {
+    return buffer;
+  }
+  return NULL;
+}
+
 CFStringRef get_device_full_name(const AMDeviceRef device) {
     CFStringRef full_name = NULL,
                 device_udid = AMDeviceCopyDeviceIdentifier(device),
                 device_name = NULL,
                 model_name = NULL;
 
-    AMDeviceConnect(device);
-    
+  kern_return_t ret = AMDeviceConnect(device);
+	printf("-->AMDeviceConnect: %08x\n",ret);
+
     device_name = AMDeviceCopyValue(device, 0, CFSTR("DeviceName")),
     model_name = get_device_hardware_name(device);
 
-    if(device_name != NULL && model_name != NULL)
+    printf("-->[%s] %ld\n",CFStringGetCStringPtr(device_name, CFStringGetSystemEncoding()), CFStringGetLength(device_name));
+    printf("-->[%s] %ld\n",CFStringGetCStringPtr(device_name, kCFStringEncodingUTF8), CFStringGetLength(device_name));
+    printf("-->[%s] %ld\n",CFStringGetCStringPtr(model_name, CFStringGetSystemEncoding()),  CFStringGetLength(model_name));
+    printf("-->[%s] %ld\n",CFStringGetCStringPtr(device_udid, CFStringGetSystemEncoding()), CFStringGetLength(device_udid));
+
+    CFShowStr(device_name);
+    printf("-->[%s] bytes\n",MYCFStringCopyUTF8String(device_name));
+
+    if((device_name != NULL) && CFStringGetLength(device_name) > 0 && (model_name != NULL) && CFStringGetLength(model_name)>0)
+    {
+        printf("In if\n");
         full_name = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@ '%@' (%@)"), model_name, device_name, device_udid);
+    }
     else
-        full_name = CFStringCreateWithFormat(NULL, NULL, CFSTR("(%@)"), device_udid);
+    {
+        printf("In else: %s\n",CFStringGetCStringPtr(device_udid, CFStringGetSystemEncoding()));
+        full_name = CFStringCreateWithFormat(NULL, NULL, CFSTR("(%@ss)"), device_udid);
+    }
 
     AMDeviceDisconnect(device);
 
@@ -391,6 +427,7 @@ CFStringRef get_device_full_name(const AMDeviceRef device) {
     if(model_name != NULL)
         CFRelease(model_name);
 
+    printf("-->[%s]\n",CFStringGetCStringPtr(full_name, CFStringGetSystemEncoding()));
     return full_name;
 }
 

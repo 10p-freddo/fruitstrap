@@ -1014,12 +1014,24 @@ void read_dir(service_conn_t afcFd, afc_connection* afc_conn_p, const char* dir)
     
     printf("%s\n", dir);
     
-    afc_dictionary afc_dict;
-    afc_dictionary* afc_dict_p = &afc_dict;
+    afc_dictionary* afc_dict_p;
+    char *key, *val;
+    int not_dir;
+
     AFCFileInfoOpen(afc_conn_p, dir, &afc_dict_p);
-    
-    afc_directory afc_dir;
-    afc_directory* afc_dir_p = &afc_dir;
+    while((AFCKeyValueRead(afc_dict_p,&key,&val) == 0) && key && val) {
+        if (strcmp(key,"st_ifmt")==0) {
+            not_dir = strcmp(val,"S_IFDIR");
+            break;
+        }
+    }
+    AFCKeyValueClose(afc_dict_p);
+
+    if (not_dir) {
+        return;
+    }
+
+    afc_directory* afc_dir_p;
     afc_error_t err = AFCDirectoryOpen(afc_conn_p, dir, &afc_dir_p);
     
     if (err != 0)
@@ -1031,7 +1043,7 @@ void read_dir(service_conn_t afcFd, afc_connection* afc_conn_p, const char* dir)
     while(true) {
         err = AFCDirectoryRead(afc_conn_p, afc_dir_p, &dir_ent);
         
-        if (!dir_ent)
+        if (err != 0 || !dir_ent)
             break;
         
         if (strcmp(dir_ent, ".") == 0 || strcmp(dir_ent, "..") == 0)
@@ -1119,11 +1131,11 @@ void list_files(AMDeviceRef device)
 {
     service_conn_t houseFd = start_house_arrest_service(device);
     
-    afc_connection afc_conn;
-    afc_connection* afc_conn_p = &afc_conn;
-    AFCConnectionOpen(houseFd, 0, &afc_conn_p);
-    
-    read_dir(houseFd, afc_conn_p, "/");
+    afc_connection* afc_conn_p;
+    if (AFCConnectionOpen(houseFd, 0, &afc_conn_p) == 0) {
+        read_dir(houseFd, afc_conn_p, "/");
+        AFCConnectionClose(afc_conn_p);
+    }
 }
 
 void upload_file(AMDeviceRef device) {

@@ -644,12 +644,12 @@ void write_lldb_prep_cmds(AMDeviceRef device, CFURLRef disk_app_url) {
     if (args) {
         CFStringRef cf_args = CFStringCreateWithCString(NULL, args, kCFStringEncodingASCII);
         CFStringFindAndReplace(cmds, CFSTR("{args}"), cf_args, range, 0);
-        rangeLLDB.length = CFStringGetLength(pmodule);
         CFStringFindAndReplace(pmodule, CFSTR("{args}"), cf_args, rangeLLDB, 0);
 
         CFRelease(cf_args);
     } else {
-        CFStringFindAndReplace(cmds, CFSTR(" {args}"), CFSTR(""), range, 0);
+        CFStringFindAndReplace(cmds, CFSTR("{args}"), CFSTR(""), range, 0);
+        CFStringFindAndReplace(pmodule, CFSTR("{args}"), CFSTR(""), rangeLLDB, 0);
     }
     range.length = CFStringGetLength(cmds);
 

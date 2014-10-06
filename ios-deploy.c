@@ -1002,7 +1002,8 @@ CFStringRef get_bundle_id(CFURLRef app_url)
     return bundle_id;
 }
 
-void read_dir(service_conn_t afcFd, afc_connection* afc_conn_p, const char* dir)
+void read_dir(service_conn_t afcFd, afc_connection* afc_conn_p, const char* dir,
+              void(*callback)(afc_connection *conn,const char *dir,int file))
 {
     char *dir_ent;
     
@@ -1028,16 +1029,18 @@ void read_dir(service_conn_t afcFd, afc_connection* afc_conn_p, const char* dir)
     AFCKeyValueClose(afc_dict_p);
 
     if (not_dir) {
+    	if (callback) (*callback)(afc_conn_p, dir, not_dir);
         return;
     }
 
     afc_directory* afc_dir_p;
     afc_error_t err = AFCDirectoryOpen(afc_conn_p, dir, &afc_dir_p);
     
-    if (err != 0)
-    {
+    if (err != 0) {
         // Couldn't open dir - was probably a file
         return;
+    } else {
+        if (callback) (*callback)(afc_conn_p, dir, not_dir);
     }
     
     while(true) {
@@ -1054,7 +1057,7 @@ void read_dir(service_conn_t afcFd, afc_connection* afc_conn_p, const char* dir)
         if (dir_joined[strlen(dir)-1] != '/')
             strcat(dir_joined, "/");
         strcat(dir_joined, dir_ent);
-        read_dir(afcFd, afc_conn_p, dir_joined);
+        read_dir(afcFd, afc_conn_p, dir_joined, callback);
         free(dir_joined);
     }
     
@@ -1133,7 +1136,7 @@ void list_files(AMDeviceRef device)
     
     afc_connection* afc_conn_p;
     if (AFCConnectionOpen(houseFd, 0, &afc_conn_p) == 0) {
-        read_dir(houseFd, afc_conn_p, "/");
+        read_dir(houseFd, afc_conn_p, "/", NULL);
         AFCConnectionClose(afc_conn_p);
     }
 }
@@ -1147,7 +1150,7 @@ void upload_file(AMDeviceRef device) {
     afc_connection* afc_conn_p = &afc_conn;
     AFCConnectionOpen(houseFd, 0, &afc_conn_p);
     
-    //        read_dir(houseFd, NULL, "/");
+    //        read_dir(houseFd, NULL, "/", NULL);
     
     if (!target_filename)
     {

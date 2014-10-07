@@ -154,6 +154,7 @@ bool justlaunch = false;
 char *app_path = NULL;
 char *device_id = NULL;
 char *args = NULL;
+char *list_root = NULL;
 int timeout = 0;
 int port = 12345;
 CFStringRef last_path = NULL;
@@ -1136,7 +1137,7 @@ void list_files(AMDeviceRef device)
     
     afc_connection* afc_conn_p;
     if (AFCConnectionOpen(houseFd, 0, &afc_conn_p) == 0) {
-        read_dir(houseFd, afc_conn_p, "/", NULL);
+        read_dir(houseFd, afc_conn_p, list_root?list_root:"/", NULL);
         AFCConnectionClose(afc_conn_p);
     }
 }
@@ -1224,7 +1225,7 @@ void download_tree(AMDeviceRef device)
 	    }
 	}
 
-	read_dir(houseFd, afc_conn_p, "/", copy_file_callback);
+	read_dir(houseFd, afc_conn_p, list_root?list_root:"/", copy_file_callback);
 
     } while(0);
 
@@ -1500,16 +1501,16 @@ int main(int argc, char *argv[]) {
         { "noinstall", no_argument, NULL, 'm' },
         { "port", required_argument, NULL, 'p' },
         { "uninstall", no_argument, NULL, 'r' },
-        { "list", no_argument, NULL, 'l' },
+        { "list", optional_argument, NULL, 'l' },
         { "bundle_id", required_argument, NULL, '1'},
         { "upload", required_argument, NULL, 'o'},
-        { "download", no_argument, NULL, 'w'},
+        { "download", optional_argument, NULL, 'w'},
         { "to", required_argument, NULL, '2'},
         { NULL, 0, NULL, 0 },
     };
     char ch;
 
-    while ((ch = getopt_long(argc, argv, "VmcdvunlrILiw:b:a:t:g:x:p:1:2:o:", longopts, NULL)) != -1)
+    while ((ch = getopt_long(argc, argv, "VmcdvunrILib:a:t:g:x:p:1:2:o:l::w::", longopts, NULL)) != -1)
     {
         switch (ch) {
         case 'm':
@@ -1573,10 +1574,12 @@ int main(int argc, char *argv[]) {
         case 'l':
             command_only = true;
             command = "list";
+            list_root = optarg;
             break;
         case 'w':
             command_only = true;
             command = "download";
+            list_root = optarg;
             break;
         default:
             usage(argv[0]);

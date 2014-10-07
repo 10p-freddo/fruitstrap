@@ -77,7 +77,7 @@ def connect_command(debugger, command, result, internal_dict):\n\
     listener = lldb.target.GetDebugger().GetListener()\n\
     listener.StartListeningForEvents(process.GetBroadcaster(), lldb.SBProcess.eBroadcastBitStateChanged)\n\
     events = []\n\
-    state = lldb.eStateInvalid\n\
+    state = (process.GetState() or lldb.eStateInvalid)\n\
     while state != lldb.eStateConnected:\n\
         event = lldb.SBEvent()\n\
         if listener.WaitForEvent(1, event):\n\

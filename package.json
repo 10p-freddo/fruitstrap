@@ -1,7 +1,7 @@
 {
   "name": "ios-deploy",
-  "version": "1.1.0",
-  "description": "launch iOS apps iOS devices from the command line (Xcode 5)",
+  "version": "1.2.0",
+  "description": "launch iOS apps iOS devices from the command line (Xcode 6)",
   "main": "ios-deploy",
   "scripts": {
       "preinstall": "make ios-deploy"

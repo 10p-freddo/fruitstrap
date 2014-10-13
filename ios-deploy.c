@@ -48,6 +48,7 @@ const char* lldb_prep_interactive_cmds = "\
 const char* lldb_prep_noninteractive_justlaunch_cmds = "\
     run\n\
     safequit\n\
+    detach\n\
 ";
 
 const char* lldb_prep_noninteractive_cmds = "\
@@ -789,6 +790,8 @@ server_callback (CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef add
         // FIXME: Close the socket
         //shutdown (CFSocketGetNative (lldb_socket), SHUT_RDWR);
         //close (CFSocketGetNative (lldb_socket));
+        CFSocketInvalidate(lldb_socket);
+        CFSocketInvalidate(server_socket);
         exit(exitcode_error);
         return;
     }

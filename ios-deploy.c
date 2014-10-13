@@ -16,7 +16,7 @@
 #include <netinet/tcp.h>
 #include "MobileDevice.h"
 
-#define APP_VERSION    "1.1.0"
+#define APP_VERSION    "1.2.0"
 #define PREP_CMDS_PATH "/tmp/fruitstrap-lldb-prep-cmds-"
 #define LLDB_SHELL "lldb -s " PREP_CMDS_PATH
 
@@ -47,7 +47,6 @@ const char* lldb_prep_interactive_cmds = "\
 
 const char* lldb_prep_noninteractive_justlaunch_cmds = "\
     run\n\
-    detach\n\
     safequit\n\
 ";
 
@@ -77,7 +76,7 @@ def connect_command(debugger, command, result, internal_dict):\n\
     listener = lldb.target.GetDebugger().GetListener()\n\
     listener.StartListeningForEvents(process.GetBroadcaster(), lldb.SBProcess.eBroadcastBitStateChanged)\n\
     events = []\n\
-    state = lldb.eStateInvalid\n\
+    state = (process.GetState() or lldb.eStateInvalid)\n\
     while state != lldb.eStateConnected:\n\
         event = lldb.SBEvent()\n\
         if listener.WaitForEvent(1, event):\n\
@@ -154,6 +153,7 @@ bool justlaunch = false;
 char *app_path = NULL;
 char *device_id = NULL;
 char *args = NULL;
+char *list_root = NULL;
 int timeout = 0;
 int port = 12345;
 CFStringRef last_path = NULL;
@@ -395,7 +395,7 @@ CFStringRef get_device_full_name(const AMDeviceRef device) {
                 model_name = NULL;
 
     AMDeviceConnect(device);
-
+    
     device_name = AMDeviceCopyValue(device, 0, CFSTR("DeviceName")),
     model_name = get_device_hardware_name(device);
 
@@ -684,7 +684,7 @@ void write_lldb_prep_cmds(AMDeviceRef device, CFURLRef disk_app_url) {
 
         CFRelease(cf_args);
     } else {
-        CFStringFindAndReplace(cmds, CFSTR(" {args}"), CFSTR(""), range, 0);
+        CFStringFindAndReplace(cmds, CFSTR("{args}"), CFSTR(""), range, 0);
     }
     range.length = CFStringGetLength(cmds);
 
@@ -784,12 +784,12 @@ server_callback (CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef add
 {
     int res;
 
-    //PRINT ("server: %s\n", CFDataGetBytePtr (data));
-
+    //printf("server: %s\n", CFDataGetBytePtr (data));
     if (CFDataGetLength (data) == 0) {
         // FIXME: Close the socket
         //shutdown (CFSocketGetNative (lldb_socket), SHUT_RDWR);
         //close (CFSocketGetNative (lldb_socket));
+        exit(exitcode_error);
         return;
     }
     res = write (CFSocketGetNative (lldb_socket), CFDataGetBytePtr (data), CFDataGetLength (data));
@@ -797,7 +797,7 @@ server_callback (CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef add
 
 void lldb_callback(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef address, const void *data, void *info)
 {
-    //PRINT ("lldb: %s\n", CFDataGetBytePtr (data));
+    //printf ("lldb: %s\n", CFDataGetBytePtr (data));
 
     if (CFDataGetLength (data) == 0)
         return;
@@ -1037,7 +1037,8 @@ CFStringRef get_bundle_id(CFURLRef app_url)
     return bundle_id;
 }
 
-void read_dir(service_conn_t afcFd, afc_connection* afc_conn_p, const char* dir)
+void read_dir(service_conn_t afcFd, afc_connection* afc_conn_p, const char* dir,
+              void(*callback)(afc_connection *conn,const char *dir,int file))
 {
     char *dir_ent;
     
@@ -1049,24 +1050,38 @@ void read_dir(service_conn_t afcFd, afc_connection* afc_conn_p, const char* dir)
     
     printf("%s\n", dir);
     
-    afc_dictionary afc_dict;
-    afc_dictionary* afc_dict_p = &afc_dict;
+    afc_dictionary* afc_dict_p;
+    char *key, *val;
+    int not_dir = 0;
+
     AFCFileInfoOpen(afc_conn_p, dir, &afc_dict_p);
-    
-    afc_directory afc_dir;
-    afc_directory* afc_dir_p = &afc_dir;
+    while((AFCKeyValueRead(afc_dict_p,&key,&val) == 0) && key && val) {
+        if (strcmp(key,"st_ifmt")==0) {
+            not_dir = strcmp(val,"S_IFDIR");
+            break;
+        }
+    }
+    AFCKeyValueClose(afc_dict_p);
+
+    if (not_dir) {
+    	if (callback) (*callback)(afc_conn_p, dir, not_dir);
+        return;
+    }
+
+    afc_directory* afc_dir_p;
     afc_error_t err = AFCDirectoryOpen(afc_conn_p, dir, &afc_dir_p);
     
-    if (err != 0)
-    {
+    if (err != 0) {
         // Couldn't open dir - was probably a file
         return;
+    } else {
+        if (callback) (*callback)(afc_conn_p, dir, not_dir);
     }
     
     while(true) {
         err = AFCDirectoryRead(afc_conn_p, afc_dir_p, &dir_ent);
         
-        if (!dir_ent)
+        if (err != 0 || !dir_ent)
             break;
         
         if (strcmp(dir_ent, ".") == 0 || strcmp(dir_ent, "..") == 0)
@@ -1077,7 +1092,7 @@ void read_dir(service_conn_t afcFd, afc_connection* afc_conn_p, const char* dir)
         if (dir_joined[strlen(dir)-1] != '/')
             strcat(dir_joined, "/");
         strcat(dir_joined, dir_ent);
-        read_dir(afcFd, afc_conn_p, dir_joined);
+        read_dir(afcFd, afc_conn_p, dir_joined, callback);
         free(dir_joined);
     }
     
@@ -1154,11 +1169,102 @@ void list_files(AMDeviceRef device)
 {
     service_conn_t houseFd = start_house_arrest_service(device);
     
-    afc_connection afc_conn;
-    afc_connection* afc_conn_p = &afc_conn;
-    AFCConnectionOpen(houseFd, 0, &afc_conn_p);
-    
-    read_dir(houseFd, afc_conn_p, "/");
+    afc_connection* afc_conn_p;
+    if (AFCConnectionOpen(houseFd, 0, &afc_conn_p) == 0) {
+        read_dir(houseFd, afc_conn_p, list_root?list_root:"/", NULL);
+        AFCConnectionClose(afc_conn_p);
+    }
+}
+
+void copy_file_callback(afc_connection* afc_conn_p, const char *name,int file)
+{
+    const char *local_name=name;
+
+    if (*local_name=='/') local_name++;
+
+    if (*local_name=='\0') return;
+
+    if (file) {
+	afc_file_ref fref;
+	int err = AFCFileRefOpen(afc_conn_p,name,1,&fref);
+
+	if (err) {
+	    fprintf(stderr,"AFCFileRefOpen(\"%s\") failed: %d\n",name,err);
+	    return;
+	}
+
+	FILE *fp = fopen(local_name,"w");
+
+	if (fp==NULL) {
+	    fprintf(stderr,"fopen(\"%s\",\"w\") failer: %s\n",local_name,strerror(errno));
+	    AFCFileRefClose(afc_conn_p,fref);
+	    return;
+	}
+
+	char buf[4096];
+	size_t sz=sizeof(buf);
+
+	while (AFCFileRefRead(afc_conn_p,fref,buf,&sz)==0 && sz) {
+	    fwrite(buf,sz,1,fp);
+	    sz = sizeof(buf);
+	}
+
+	AFCFileRefClose(afc_conn_p,fref);
+	fclose(fp);
+    } else {
+	if (mkdir(local_name,0777) && errno!=EEXIST)
+	    fprintf(stderr,"mkdir(\"%s\") failed: %s\n",local_name,strerror(errno));
+    }
+}
+
+void mkdirhier(char *path)
+{
+    char *slash;
+    struct stat buf;
+
+    if (path[0]=='.' && path[1]=='/') path+=2;
+
+    if ((slash = strrchr(path,'/'))) {
+	*slash = '\0';
+	if (stat(path,&buf)==0) {
+	    *slash = '/';
+	    return;
+	}
+	mkdirhier(path);
+	mkdir (path,0777);
+	*slash = '/';
+    }
+
+    return;
+}
+
+void download_tree(AMDeviceRef device)
+{
+    service_conn_t houseFd = start_house_arrest_service(device);
+    afc_connection* afc_conn_p = NULL;
+    char *dirname = NULL;
+
+    if (AFCConnectionOpen(houseFd, 0, &afc_conn_p) == 0)  do {
+
+	if (target_filename) {
+	    dirname = strdup(target_filename);
+	    mkdirhier(dirname);
+	    if (mkdir(dirname,0777) && errno!=EEXIST) {
+		fprintf(stderr,"mkdir(\"%s\") failed: %s\n",dirname,strerror(errno));
+		break;
+	    }
+	    if (chdir(dirname)) {
+		fprintf(stderr,"chdir(\"%s\") failed: %s\n",dirname,strerror(errno));
+		break;
+	    }
+	}
+
+	read_dir(houseFd, afc_conn_p, list_root?list_root:"/", copy_file_callback);
+
+    } while(0);
+
+    if (dirname) free(dirname);
+    if (afc_conn_p) AFCConnectionClose(afc_conn_p);
 }
 
 void upload_file(AMDeviceRef device) {
@@ -1170,7 +1276,7 @@ void upload_file(AMDeviceRef device) {
     afc_connection* afc_conn_p = &afc_conn;
     AFCConnectionOpen(houseFd, 0, &afc_conn_p);
     
-    //        read_dir(houseFd, NULL, "/");
+    //        read_dir(houseFd, NULL, "/", NULL);
     
     if (!target_filename)
     {
@@ -1246,6 +1352,8 @@ void handle_device(AMDeviceRef device) {
             list_files(device);
         } else if (strcmp("upload", command) == 0) {
             upload_file(device);
+        } else if (strcmp("download", command) == 0) {
+            download_tree(device);
         }
         exit(0);
     }
@@ -1399,7 +1507,8 @@ void usage(const char* app) {
         "  -1, --bundle_id <bundle id>  specify bundle id for list and upload\n"
         "  -l, --list                   list files\n"
         "  -o, --upload <file>          upload file\n"
-        "  -2, --to <target pathname>	use together with upload file. specify target for upload\n"
+        "  -w, --download               download app tree\n"
+        "  -2, --to <target pathname>   use together with up/download file/tree. specify target\n"
         "  -V, --version                print the executable version \n",
         app);
 }
@@ -1426,15 +1535,16 @@ int main(int argc, char *argv[]) {
         { "noinstall", no_argument, NULL, 'm' },
         { "port", required_argument, NULL, 'p' },
         { "uninstall", no_argument, NULL, 'r' },
-        { "list", no_argument, NULL, 'l' },
+        { "list", optional_argument, NULL, 'l' },
         { "bundle_id", required_argument, NULL, '1'},
         { "upload", required_argument, NULL, 'o'},
+        { "download", optional_argument, NULL, 'w'},
         { "to", required_argument, NULL, '2'},
         { NULL, 0, NULL, 0 },
     };
     char ch;
 
-    while ((ch = getopt_long(argc, argv, "VmcdvunlrILi:b:a:t:g:x:p:1:2:o:", longopts, NULL)) != -1)
+    while ((ch = getopt_long(argc, argv, "VmcdvunrILib:a:t:g:x:p:1:2:o:l::w::", longopts, NULL)) != -1)
     {
         switch (ch) {
         case 'm':
@@ -1498,6 +1608,12 @@ int main(int argc, char *argv[]) {
         case 'l':
             command_only = true;
             command = "list";
+            list_root = optarg;
+            break;
+        case 'w':
+            command_only = true;
+            command = "download";
+            list_root = optarg;
             break;
         default:
             usage(argv[0]);

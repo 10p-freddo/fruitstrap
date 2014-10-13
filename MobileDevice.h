@@ -396,11 +396,11 @@ afc_error_t AFCFileRefOpen(afc_connection *conn, const char *path,
 afc_error_t AFCFileRefSeek(afc_connection *conn, afc_file_ref ref,
     unsigned long long offset1, unsigned long long offset2);
 afc_error_t AFCFileRefRead(afc_connection *conn, afc_file_ref ref,
-    void *buf, unsigned int *len);
+    void *buf, size_t *len);
 afc_error_t AFCFileRefSetFileSize(afc_connection *conn, afc_file_ref ref,
     unsigned long long offset);
 afc_error_t AFCFileRefWrite(afc_connection *conn, afc_file_ref ref,
-    const void *buf, unsigned int len);
+    const void *buf, size_t len);
 afc_error_t AFCFileRefClose(afc_connection *conn, afc_file_ref ref);
 
 afc_error_t AFCFileInfoOpen(afc_connection *conn, const char *path, struct

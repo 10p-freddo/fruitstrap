@@ -187,10 +187,20 @@ Boolean path_exists(CFTypeRef path) {
 CFStringRef find_path(CFStringRef rootPath, CFStringRef namePattern, CFStringRef expression) {
     FILE *fpipe = NULL;
     CFStringRef quotedRootPath = rootPath;
+    CFStringRef cf_command;
+    CFRange slashLocation;
+
     if (CFStringGetCharacterAtIndex(rootPath, 0) != '`') {
         quotedRootPath = CFStringCreateWithFormat(NULL, NULL, CFSTR("'%@'"), rootPath);
     }
-    CFStringRef cf_command = CFStringCreateWithFormat(NULL, NULL, CFSTR("find %@ -name '%@' %@ 2>/dev/null | sort | tail -n 1"), quotedRootPath, namePattern, expression);
+
+    slashLocation = CFStringFind(namePattern, CFSTR("/"), 0);
+    if (slashLocation.location == kCFNotFound) {
+        cf_command = CFStringCreateWithFormat(NULL, NULL, CFSTR("find %@ -name '%@' %@ 2>/dev/null | sort | tail -n 1"), quotedRootPath, namePattern, expression);
+    } else {
+        cf_command = CFStringCreateWithFormat(NULL, NULL, CFSTR("find %@ -path '%@' %@ 2>/dev/null | sort | tail -n 1"), quotedRootPath, namePattern, expression);
+    }
+
     if (quotedRootPath != rootPath) {
         CFRelease(quotedRootPath);
     }
@@ -255,6 +265,7 @@ CFStringRef copy_xcode_path_for(CFStringRef subPath, CFStringRef search) {
     CFStringRef path;
     bool found = false;
     const char* home = get_home();
+    CFRange slashLocation;
 
 
     // Try using xcode-select --print-path
@@ -264,7 +275,12 @@ CFStringRef copy_xcode_path_for(CFStringRef subPath, CFStringRef search) {
     }
     // Try find `xcode-select --print-path` with search as a name pattern
     if (!found) {
-        path = find_path(CFStringCreateWithFormat(NULL, NULL, CFSTR("%@/%@"), xcodeDevPath, subPath), search, CFSTR("-maxdepth 1"));
+        slashLocation = CFStringFind(search, CFSTR("/"), 0);
+        if (slashLocation.location == kCFNotFound) {
+             path = find_path(CFStringCreateWithFormat(NULL, NULL, CFSTR("%@/%@"), xcodeDevPath, subPath), search, CFSTR("-maxdepth 1"));
+        } else {
+             path = find_path(CFStringCreateWithFormat(NULL, NULL, CFSTR("%@/%@"), xcodeDevPath, subPath), search, CFSTR(""));
+        }
         found = CFStringGetLength(path) > 0 && path_exists(path);
     }
     // If not look in the default xcode location (xcode-select is sometimes wrong)
@@ -473,7 +489,7 @@ CFStringRef copy_developer_disk_image_path(AMDeviceRef device) {
             path = copy_xcode_path_for(CFSTR("Platforms/iPhoneOS.platform/DeviceSupport"), CFStringCreateWithFormat(NULL, NULL, CFSTR("%@ (%@)/DeveloperDiskImage.dmg"), version, build));
         }
         if (path == NULL) {
-            path = copy_xcode_path_for(CFSTR("Platforms/iPhoneOS.platform/DeviceSupport"), CFStringCreateWithFormat(NULL, NULL, CFSTR("%@ (*)/DeveloperDiskImage.dmg"), version));
+             path = copy_xcode_path_for(CFSTR("Platforms/iPhoneOS.platform/DeviceSupport"), CFStringCreateWithFormat(NULL, NULL, CFSTR("*/%@ (*)/DeveloperDiskImage.dmg"), version));
         }
         if (path == NULL) {
             path = copy_xcode_path_for(CFSTR("Platforms/iPhoneOS.platform/DeviceSupport"), CFStringCreateWithFormat(NULL, NULL, CFSTR("%@/DeveloperDiskImage.dmg"), version));

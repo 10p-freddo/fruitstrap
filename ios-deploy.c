@@ -847,8 +847,6 @@ server_callback (CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef add
         assert((child != 0) && (child != mypid)); //child should not be here
         if ((parent != 0) && (parent == mypid) && (child != 0))
         {
-            //we shouldn't be here because it is the parent
-            //just in case.
             if (verbose)
             {
                 printf("Got an empty packet hence killing child (%d) tree\n", child);
@@ -1609,8 +1607,6 @@ void timeout_callback(CFRunLoopTimerRef timer, void *info) {
           int mypid = getpid();
           if ((parent != 0) && (parent == mypid) && (child != 0))
           {
-              //we shouldn't be here because it is the parent
-              //just in case.
               if (verbose)
               {
                   printf("Timeout. Killing child (%d) tree\n", child);

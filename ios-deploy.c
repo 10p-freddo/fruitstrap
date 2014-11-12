@@ -1602,7 +1602,22 @@ void timeout_callback(CFRunLoopTimerRef timer, void *info) {
     }
     else
     {
-      printf("[....] No more devices found.\n");
+      if (!debug)
+          printf("[....] No more devices found.\n");
+      else
+      {
+          int mypid = getpid();
+          if ((parent != 0) && (parent == mypid) && (child != 0))
+          {
+              //we shouldn't be here because it is the parent
+              //just in case.
+              if (verbose)
+              {
+                  printf("Timeout. Killing child (%d) tree\n", child);
+              }
+              kill_ptree(child, SIGHUP);
+          }
+      }
       exit(0);
     }
 }

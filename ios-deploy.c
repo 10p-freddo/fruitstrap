@@ -16,7 +16,7 @@
 #include <netinet/tcp.h>
 #include "MobileDevice.h"
 
-#define APP_VERSION    "1.2.2"
+#define APP_VERSION    "1.3.0"
 #define PREP_CMDS_PATH "/tmp/fruitstrap-lldb-prep-cmds-"
 #define LLDB_SHELL "lldb -s " PREP_CMDS_PATH
 /*
@@ -110,8 +110,6 @@ def safequit_command(debugger, command, result, internal_dict):\n\
             state = process.GetStateFromEvent(event)\n\
         else:\n\
             state = lldb.eStateInvalid\n\
-        print('\\nin process\\n')\n\
-        print(state)\n\
         process.Detach()\n\
         sys.exit(0)\n\
 \n\
@@ -833,18 +831,28 @@ CFSocketRef lldb_socket;
 CFWriteStreamRef serverWriteStream = NULL;
 CFWriteStreamRef lldbWriteStream = NULL;
 
+int kill_ptree(pid_t root, int signum);
 void
 server_callback (CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef address, const void *data, void *info)
 {
     int res;
 
-    //printf("server: %s\n", CFDataGetBytePtr (data));
     if (CFDataGetLength (data) == 0) {
         // FIXME: Close the socket
         //shutdown (CFSocketGetNative (lldb_socket), SHUT_RDWR);
         //close (CFSocketGetNative (lldb_socket));
         CFSocketInvalidate(lldb_socket);
         CFSocketInvalidate(server_socket);
+        int mypid = getpid();
+        assert((child != 0) && (child != mypid)); //child should not be here
+        if ((parent != 0) && (parent == mypid) && (child != 0))
+        {
+            if (verbose)
+            {
+                printf("Got an empty packet hence killing child (%d) tree\n", child);
+            }
+            kill_ptree(child, SIGHUP);
+        }
         exit(exitcode_error);
         return;
     }
@@ -965,7 +973,6 @@ void lldb_finished_handler(int signum)
 }
 
 void bring_process_to_foreground() {
-    printf("Bringing process to foreground\n");
     if (setpgid(0, 0) == -1)
         perror("setpgid failed");
 
@@ -976,7 +983,6 @@ void bring_process_to_foreground() {
 }
 
 void setup_dummy_pipe_on_stdin(int pfd[2]) {
-    printf("Setting up dummy pipe\n");
     if (pipe(pfd) == -1)
         perror("pipe failed");
     if (dup2(pfd[0], STDIN_FILENO) == -1)
@@ -1064,60 +1070,8 @@ void launch_debugger(AMDeviceRef device, CFURLRef url) {
     }
 }
 
-#define USE_SYSTEM 1
 void launch_debugger_and_exit(AMDeviceRef device, CFURLRef url) {
     setup_lldb(device,url);
-#ifdef USE_SYSTEM
-#define	PARENT_READ     pfd[0]
-#define	CHILD_WRITE     pfd[1]
-#define CHILD_READ      pfd[0]
-#define PARENT_WRITE	pfd[1]
-    
-    int pfd[2] = {-1, -1};
-    if (pipe(pfd) == -1)
-        perror("Pipe failed");
-    int pid = fork();
-    if (pid == 0) {
-        signal(SIGHUP, SIG_DFL);
-        signal(SIGLLDB, SIG_DFL);
-        child = getpid();
-        
-        //close(pfd[1]);
-        if (dup2(pfd[0],STDIN_FILENO) == -1)
-            perror("dup2 failed");
-        
-        char lldb_shell[400];
-        sprintf(lldb_shell, LLDB_SHELL);
-        if(device_id != NULL)
-            strcat(lldb_shell, device_id);
-        
-        int status = system(lldb_shell); // launch lldb
-        if (status == -1)
-            perror("failed launching lldb");
-        printf("Done launching\n");
-        
-        close(pfd[0]);
-        
-        // Notify parent we're exiting
-        kill(parent, SIGLLDB);
-        // Pass lldb exit code
-        _exit(WEXITSTATUS(status));
-    } else if (pid > 0) {
-        child = pid;
-        //char ch;
-        //while(read(pfd[1],&ch,1))
-        //    printf("[%c]",ch);
-    } else {
-        perror("fork failed");
-        exit(exitcode_error);
-    }
-#endif
-#ifdef USE_EXEC
-#define	PARENT_READ     pfd[0]
-#define	CHILD_WRITE     pfd[1]
-#define CHILD_READ      pfd[0]
-#define PARENT_WRITE	pfd[1]
-    
     int pfd[2] = {-1, -1};
     if (pipe(pfd) == -1)
         perror("Pipe failed");
@@ -1129,84 +1083,6 @@ void launch_debugger_and_exit(AMDeviceRef device, CFURLRef url) {
         
         if (dup2(pfd[0],STDIN_FILENO) == -1)
             perror("dup2 failed");
-        if (dup2(pfd[1],STDOUT_FILENO) == -1)
-            perror("dup2 failed for out");
-        
-        char lldb_shell[400];
-        sprintf(lldb_shell, PREP_CMDS_PATH);
-        if(device_id != NULL)
-            strcat(lldb_shell, device_id);
-        
-        char *path[4];
-        path[0] = "lldb";
-        path[1] = "-s";
-        path[2] = lldb_shell;
-        path[3] = NULL;
-
-/*        path[0] = "echo";
-        path[1] = "hello";
-        path[2] = NULL;*/
-        int status = execvp(path[0],path);
-        if (status == -1)
-            perror("failed launching lldb");
-        
-        close(pfd[0]);
-        close(pfd[1]);
-        
-        // Notify parent we're exiting
-        kill(parent, SIGLLDB);
-        // Pass lldb exit code
-        _exit(WEXITSTATUS(status));
-    } else if (pid > 0) {
-        child = pid;
-        char ch;
-        bool eof = false;
-        while (!eof)
-        {
-            int ret = read(pfd[0],&ch,1);
-            printf("%c",ch);
-        }
-        printf("Done");
-    } else {
-        perror("fork failed");
-        exit(exitcode_error);
-    }
-#endif
-#ifdef USE_PIPE 
-    printf("--------USING PIPE------\n");
-    char lldb_shell[400];
-    sprintf(lldb_shell, LLDB_SHELL);
-    if(device_id != NULL)
-        strcat(lldb_shell, device_id);
-    FILE *lldb = popen(lldb_shell, "rw");
-    if (lldb == NULL)
-        perror("failed popen");
-    while (!feof(lldb))
-    {
-        char buffer[128];
-        char *ret = fgets(buffer, 128, lldb);
-        if (!ret)
-            break;
-        printf("%s",ret);
-    }
-#endif
-#ifdef SAMEASOTHER
-    int pid = fork();
-    if (pid == 0) {
-        signal(SIGHUP, SIG_DFL);
-        signal(SIGLLDB, SIG_DFL);
-        child = getpid();
-        
-        int pfd[2] = {-1, -1};
-        if (isatty(STDIN_FILENO))
-            // If we are running on a terminal, then we need to bring process to foreground for input
-            // to work correctly on lldb's end.
-            bring_process_to_foreground();
-        else
-            // If lldb is running in a non terminal environment, then it freaks out spamming "^D" and
-            // "quit". It seems this is caused by read() on stdin returning EOF in lldb. To hack around
-            // this we setup a dummy pipe on stdin, so read() would block expecting "user's" input.
-            setup_dummy_pipe_on_stdin(pfd);
         
         char lldb_shell[400];
         sprintf(lldb_shell, LLDB_SHELL);
@@ -1218,7 +1094,6 @@ void launch_debugger_and_exit(AMDeviceRef device, CFURLRef url) {
             perror("failed launching lldb");
         
         close(pfd[0]);
-        close(pfd[1]);
         
         // Notify parent we're exiting
         kill(parent, SIGLLDB);
@@ -1226,11 +1101,12 @@ void launch_debugger_and_exit(AMDeviceRef device, CFURLRef url) {
         _exit(WEXITSTATUS(status));
     } else if (pid > 0) {
         child = pid;
+        if (verbose)
+            printf("Waiting for child [Child: %d][Parent: %d]\n", child, parent);
     } else {
         perror("fork failed");
         exit(exitcode_error);
     }
-#endif
 }
 
 CFStringRef get_bundle_id(CFURLRef app_url)
@@ -1724,7 +1600,20 @@ void timeout_callback(CFRunLoopTimerRef timer, void *info) {
     }
     else
     {
-      printf("[....] No more devices found.\n");
+      if (!debug)
+          printf("[....] No more devices found.\n");
+      else
+      {
+          int mypid = getpid();
+          if ((parent != 0) && (parent == mypid) && (child != 0))
+          {
+              if (verbose)
+              {
+                  printf("Timeout. Killing child (%d) tree\n", child);
+              }
+              kill_ptree(child, SIGHUP);
+          }
+      }
       exit(0);
     }
 }

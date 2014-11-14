@@ -10,29 +10,27 @@ Install and debug iPhone apps without using Xcode. Designed to work on unjailbro
 
 ## Usage
 
-	Usage: ./ios-deploy [OPTION]...
-        -d, --debug                  launch the app in GDB after installation\n"
-        -i, --id <device_id>         the id of the device to connect to\n"
-        -c, --detect                 only detect if the device is connected\n"
-        -b, --bundle <bundle.app>    the path to the app bundle to be installed\n"
-        -a, --args <args>            command line arguments to pass to the app when launching it\n"
-        -t, --timeout <timeout>      number of seconds to wait for a device to be connected\n"
-        -u, --unbuffered             don't buffer stdout\n"
-        -g, --gdbargs <args>         extra arguments to pass to GDB when starting the debugger\n"
-        -x, --gdbexec <file>         GDB commands script file\n"
-        -n, --nostart                do not start the app when debugging\n"
-        -I, --noninteractive         start in non interactive mode (quit when app crashes or exits)\n"
-        -L, --justlaunch             just launch the app and exit lldb\n"
-        -v, --verbose                enable verbose output\n"
-        -m, --noinstall              directly start debugging without app install (-d not required)\n"
-        -p, --port <number>          port used for device, default: 12345 \n"
-        -r, --uninstall              uninstall the app before install (do not use with -m; app cache and data are cleared) \n"
-        -1, --bundle_id <bundle id>  specify bundle id for list and upload\n"
-        -l, --list                   list files\n"
-        -o, --upload <file>          upload file\n"
-        -w, --download               download app tree\n"
-        -2, --to <target pathname>   use together with up/download file/tree. specify target\n"
-        -V, --version                print the executable version \n",
+    Usage: ios-deploy [OPTION]...
+      -d, --debug                  launch the app in GDB after installation
+      -i, --id <device_id>         the id of the device to connect to
+      -c, --detect                 only detect if the device is connected
+      -b, --bundle <bundle.app>    the path to the app bundle to be installed
+      -a, --args <args>            command line arguments to pass to the app when launching it
+      -t, --timeout <timeout>      number of seconds to wait for a device to be connected
+      -u, --unbuffered             don't buffer stdout
+      -n, --nostart                do not start the app when debugging
+      -I, --noninteractive         start in non interactive mode (quit when app crashes or exits)
+      -L, --justlaunch             just launch the app and exit lldb
+      -v, --verbose                enable verbose output
+      -m, --noinstall              directly start debugging without app install (-d not required)
+      -p, --port <number>          port used for device, default: 12345 
+      -r, --uninstall              uninstall the app before install (do not use with -m; app cache and data are cleared) 
+      -1, --bundle_id <bundle id>  specify bundle id for list and upload
+      -l, --list                   list files
+      -o, --upload <file>          upload file
+      -w, --download               download app tree
+      -2, --to <target pathname>   use together with up/download file/tree. specify target
+      -V, --version                print the executable version 
 	  
 ## Demo
 

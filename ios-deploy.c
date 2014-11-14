@@ -1635,8 +1635,6 @@ void usage(const char* app) {
         "  -a, --args <args>            command line arguments to pass to the app when launching it\n"
         "  -t, --timeout <timeout>      number of seconds to wait for a device to be connected\n"
         "  -u, --unbuffered             don't buffer stdout\n"
-        "  -g, --gdbargs <args>         extra arguments to pass to GDB when starting the debugger\n"
-        "  -x, --gdbexec <file>         GDB commands script file\n"
         "  -n, --nostart                do not start the app when debugging\n"
         "  -I, --noninteractive         start in non interactive mode (quit when app crashes or exits)\n"
         "  -L, --justlaunch             just launch the app and exit lldb\n"
@@ -1665,7 +1663,6 @@ int main(int argc, char *argv[]) {
         { "args", required_argument, NULL, 'a' },
         { "verbose", no_argument, NULL, 'v' },
         { "timeout", required_argument, NULL, 't' },
-        { "gdbexec", no_argument, NULL, 'x' },
         { "unbuffered", no_argument, NULL, 'u' },
         { "nostart", no_argument, NULL, 'n' },
         { "noninteractive", no_argument, NULL, 'I' },

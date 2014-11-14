@@ -1163,7 +1163,12 @@ void read_dir(service_conn_t afcFd, afc_connection* afc_conn_p, const char* dir,
     char *key, *val;
     int not_dir = 0;
 
-    AFCFileInfoOpen(afc_conn_p, dir, &afc_dict_p);
+    unsigned int code = AFCFileInfoOpen(afc_conn_p, dir, &afc_dict_p);
+    if (code != 0) {
+        // there was a problem reading or opening the file to get info on it, abort
+        return;
+    }
+    
     while((AFCKeyValueRead(afc_dict_p,&key,&val) == 0) && key && val) {
         if (strcmp(key,"st_ifmt")==0) {
             not_dir = strcmp(val,"S_IFDIR");

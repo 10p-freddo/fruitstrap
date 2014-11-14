@@ -1607,8 +1607,10 @@ void timeout_callback(CFRunLoopTimerRef timer, void *info) {
     }
     else
     {
-      if (!debug)
+      if (!debug) {
           printf("[....] No more devices found.\n");
+          exit(exitcode_error);
+      }
       else
       {
           int mypid = getpid();

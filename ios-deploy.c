@@ -1490,13 +1490,15 @@ void handle_device(AMDeviceRef device) {
             assert(AMDeviceIsPaired(device));
             assert(AMDeviceValidatePairing(device) == 0);
             assert(AMDeviceStartSession(device) == 0);
-
-            assert(AMDeviceSecureUninstallApplication(0, device, bundle_id, 0, NULL, 0) == 0);
-
+            
+            int code = AMDeviceSecureUninstallApplication(0, device, bundle_id, 0, NULL, 0);
+            if (code == 0) {
+                printf("[ OK ] Uninstalled package with bundle id %s\n", CFStringGetCStringPtr(bundle_id, CFStringGetSystemEncoding()));
+            } else {
+                printf("[ ERROR ] Could not uninstall package with bundle id %s\n", CFStringGetCStringPtr(bundle_id, CFStringGetSystemEncoding()));
+            }
             assert(AMDeviceStopSession(device) == 0);
             assert(AMDeviceDisconnect(device) == 0);
-
-            printf("[ OK ] Uninstalled package with bundle id %s\n", CFStringGetCStringPtr(bundle_id, CFStringGetSystemEncoding()));
         }
     }
 

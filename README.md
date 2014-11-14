@@ -1,12 +1,12 @@
 ios-deploy
 ==========
-Install and debug iPhone apps without using Xcode. Designed to work on unjailbroken devices.
+Install and debug iOS apps without using Xcode. Designed to work on un-jailbroken devices.
 
 ## Requirements
 
-* Mac OS X. Tested on Snow Leopard only.
-* You need to have a valid iPhone development certificate installed.
-* Xcode must be installed, along with the SDK for your iOS version.
+* Mac OS X. Tested on 10.10 Yosemite and iOS 8.1
+* You need to have a valid iOS development certificate installed.
+* Xcode 6.1 should be installed
 
 ## Usage
 
@@ -31,7 +31,32 @@ Install and debug iPhone apps without using Xcode. Designed to work on unjailbro
       -w, --download               download app tree
       -2, --to <target pathname>   use together with up/download file/tree. specify target
       -V, --version                print the executable version 
-	  
+
+## Examples
+
+The commands below assume that you have an app called `my.app` with bundle id `bundle.id`. Substitute where necessary.
+
+    // deploy and debug your app to a connected device
+    ios-deploy --debug --bundle my.app
+
+    // deploy and launch your app to a connected device, but quit the debugger after
+    ios-deploy --justlaunch --debug --bundle my.app
+
+    // deploy and launch your app to a connected device, quit when app crashes or exits
+    ios-deploy --noninteractive --debug --bundle my.app
+
+    // Upload a file to your app's Documents folder
+    ios-deploy --bundle_id 'bundle.id' --upload test.txt --to Documents/test.txt
+    
+    // Download your app's Documents, Library and tmp folders
+    ios-deploy --bundle_id 'bundle.id' --download --to MyDestinationFolder
+
+    // List the contents of your app's Documents, Library and tmp folders
+    ios-deploy --bundle_id 'bundle.id' --list
+
+    // deploy and debug your app to a connected device, uninstall the app first
+    ios-deploy --uninstall --debug --bundle my.app
+    
 ## Demo
 
 * The included demo.app represents the minimum required to get code running on iOS.
@@ -40,7 +65,7 @@ Install and debug iPhone apps without using Xcode. Designed to work on unjailbro
 
 ## Notes
 
-* With some modifications, it may be possible to use this without Xcode installed; however, you would need a copy of the relevant DeveloperDiskImage.dmg (included with Xcode). GDB would also run slower as symbols would be downloaded from the device on-the-fly.
+* With some modifications, it may be possible to use this without Xcode installed; however, you would need a copy of the relevant DeveloperDiskImage.dmg (included with Xcode). lldb would also run slower as symbols would be downloaded from the device on-the-fly.
 
 
 ## Listing Device Ids

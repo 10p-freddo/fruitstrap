@@ -16,7 +16,7 @@
 #include <netinet/tcp.h>
 #include "MobileDevice.h"
 
-#define APP_VERSION    "1.3.0"
+#define APP_VERSION    "1.3.2"
 #define PREP_CMDS_PATH "/tmp/fruitstrap-lldb-prep-cmds-"
 #define LLDB_SHELL "lldb -s " PREP_CMDS_PATH
 /*
@@ -1163,7 +1163,12 @@ void read_dir(service_conn_t afcFd, afc_connection* afc_conn_p, const char* dir,
     char *key, *val;
     int not_dir = 0;
 
-    AFCFileInfoOpen(afc_conn_p, dir, &afc_dict_p);
+    unsigned int code = AFCFileInfoOpen(afc_conn_p, dir, &afc_dict_p);
+    if (code != 0) {
+        // there was a problem reading or opening the file to get info on it, abort
+        return;
+    }
+    
     while((AFCKeyValueRead(afc_dict_p,&key,&val) == 0) && key && val) {
         if (strcmp(key,"st_ifmt")==0) {
             not_dir = strcmp(val,"S_IFDIR");
@@ -1443,6 +1448,7 @@ void handle_device(AMDeviceRef device) {
 
     if (detect_only) {
         printf("[....] Found %s connected through %s.\n", CFStringGetCStringPtr(device_full_name, CFStringGetSystemEncoding()), CFStringGetCStringPtr(device_interface_name, CFStringGetSystemEncoding()));
+        found_device = true;
         return;
     }
     if (device_id != NULL) {
@@ -1490,13 +1496,15 @@ void handle_device(AMDeviceRef device) {
             assert(AMDeviceIsPaired(device));
             assert(AMDeviceValidatePairing(device) == 0);
             assert(AMDeviceStartSession(device) == 0);
-
-            assert(AMDeviceSecureUninstallApplication(0, device, bundle_id, 0, NULL, 0) == 0);
-
+            
+            int code = AMDeviceSecureUninstallApplication(0, device, bundle_id, 0, NULL, 0);
+            if (code == 0) {
+                printf("[ OK ] Uninstalled package with bundle id %s\n", CFStringGetCStringPtr(bundle_id, CFStringGetSystemEncoding()));
+            } else {
+                printf("[ ERROR ] Could not uninstall package with bundle id %s\n", CFStringGetCStringPtr(bundle_id, CFStringGetSystemEncoding()));
+            }
             assert(AMDeviceStopSession(device) == 0);
             assert(AMDeviceDisconnect(device) == 0);
-
-            printf("[ OK ] Uninstalled package with bundle id %s\n", CFStringGetCStringPtr(bundle_id, CFStringGetSystemEncoding()));
         }
     }
 
@@ -1600,10 +1608,14 @@ void timeout_callback(CFRunLoopTimerRef timer, void *info) {
     }
     else
     {
-      if (!debug)
+      if (!debug) {
           printf("[....] No more devices found.\n");
-      else
-      {
+      }
+      
+      if (detect_only && !found_device) {
+          exit(exitcode_error);
+          return;
+      } else {
           int mypid = getpid();
           if ((parent != 0) && (parent == mypid) && (child != 0))
           {
@@ -1621,15 +1633,13 @@ void timeout_callback(CFRunLoopTimerRef timer, void *info) {
 void usage(const char* app) {
     printf(
         "Usage: %s [OPTION]...\n"
-        "  -d, --debug                  launch the app in GDB after installation\n"
+        "  -d, --debug                  launch the app in lldb after installation\n"
         "  -i, --id <device_id>         the id of the device to connect to\n"
         "  -c, --detect                 only detect if the device is connected\n"
         "  -b, --bundle <bundle.app>    the path to the app bundle to be installed\n"
         "  -a, --args <args>            command line arguments to pass to the app when launching it\n"
         "  -t, --timeout <timeout>      number of seconds to wait for a device to be connected\n"
         "  -u, --unbuffered             don't buffer stdout\n"
-        "  -g, --gdbargs <args>         extra arguments to pass to GDB when starting the debugger\n"
-        "  -x, --gdbexec <file>         GDB commands script file\n"
         "  -n, --nostart                do not start the app when debugging\n"
         "  -I, --noninteractive         start in non interactive mode (quit when app crashes or exits)\n"
         "  -L, --justlaunch             just launch the app and exit lldb\n"
@@ -1658,7 +1668,6 @@ int main(int argc, char *argv[]) {
         { "args", required_argument, NULL, 'a' },
         { "verbose", no_argument, NULL, 'v' },
         { "timeout", required_argument, NULL, 't' },
-        { "gdbexec", no_argument, NULL, 'x' },
         { "unbuffered", no_argument, NULL, 'u' },
         { "nostart", no_argument, NULL, 'n' },
         { "noninteractive", no_argument, NULL, 'I' },
@@ -1717,6 +1726,7 @@ int main(int argc, char *argv[]) {
             break;
         case 'c':
             detect_only = true;
+            debug = 1;
             break;
         case 'V':
             show_version();

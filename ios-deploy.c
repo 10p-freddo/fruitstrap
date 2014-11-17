@@ -16,7 +16,7 @@
 #include <netinet/tcp.h>
 #include "MobileDevice.h"
 
-#define APP_VERSION    "1.3.1"
+#define APP_VERSION    "1.3.2"
 #define PREP_CMDS_PATH "/tmp/fruitstrap-lldb-prep-cmds-"
 #define LLDB_SHELL "lldb -s " PREP_CMDS_PATH
 /*
@@ -1448,6 +1448,7 @@ void handle_device(AMDeviceRef device) {
 
     if (detect_only) {
         printf("[....] Found %s connected through %s.\n", CFStringGetCStringPtr(device_full_name, CFStringGetSystemEncoding()), CFStringGetCStringPtr(device_interface_name, CFStringGetSystemEncoding()));
+        found_device = true;
         return;
     }
     if (device_id != NULL) {
@@ -1609,10 +1610,12 @@ void timeout_callback(CFRunLoopTimerRef timer, void *info) {
     {
       if (!debug) {
           printf("[....] No more devices found.\n");
-          exit(exitcode_error);
       }
-      else
-      {
+      
+      if (detect_only && !found_device) {
+          exit(exitcode_error);
+          return;
+      } else {
           int mypid = getpid();
           if ((parent != 0) && (parent == mypid) && (child != 0))
           {
@@ -1630,7 +1633,7 @@ void timeout_callback(CFRunLoopTimerRef timer, void *info) {
 void usage(const char* app) {
     printf(
         "Usage: %s [OPTION]...\n"
-        "  -d, --debug                  launch the app in GDB after installation\n"
+        "  -d, --debug                  launch the app in lldb after installation\n"
         "  -i, --id <device_id>         the id of the device to connect to\n"
         "  -c, --detect                 only detect if the device is connected\n"
         "  -b, --bundle <bundle.app>    the path to the app bundle to be installed\n"
@@ -1723,6 +1726,7 @@ int main(int argc, char *argv[]) {
             break;
         case 'c':
             detect_only = true;
+            debug = 1;
             break;
         case 'V':
             show_version();

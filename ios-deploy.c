@@ -1727,6 +1727,7 @@ int main(int argc, char *argv[]) {
             break;
         case 'c':
             detect_only = true;
+            debug = 1;
             break;
         case 'V':
             show_version();

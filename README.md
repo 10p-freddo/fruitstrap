@@ -8,6 +8,12 @@ Install and debug iOS apps without using Xcode. Designed to work on un-jailbroke
 * You need to have a valid iOS development certificate installed.
 * Xcode 6.1 should be installed
 
+## Installation
+
+```bash
+$ npm install -g ios-deploy
+```
+
 ## Usage
 
     Usage: ios-deploy [OPTION]...

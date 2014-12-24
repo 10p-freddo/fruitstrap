@@ -9,7 +9,12 @@ Install and debug iOS apps without using Xcode. Designed to work on un-jailbroke
 * Xcode 6.1 should be installed
 
 ## Installation
+ios-deploy installation is made simple using the node.js package manager.  If you use [Homebrew](http://brew.sh/), install node.js: 
+```bash
+brew install node
+```
 
+Now install ios-deploy with the node.js package manager:
 ```bash
 $ npm install -g ios-deploy
 ```

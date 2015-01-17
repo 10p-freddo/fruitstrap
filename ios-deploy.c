@@ -16,7 +16,7 @@
 #include <netinet/tcp.h>
 #include "MobileDevice.h"
 
-#define APP_VERSION    "1.3.3"
+#define APP_VERSION    "1.3.4"
 #define PREP_CMDS_PATH "/tmp/fruitstrap-lldb-prep-cmds-"
 #define LLDB_SHELL "lldb -s " PREP_CMDS_PATH
 /*
@@ -315,6 +315,13 @@ CFStringRef copy_xcode_path_for(CFStringRef subPath, CFStringRef search) {
 // Please ensure that device is connected or the name will be unknown
 const CFStringRef get_device_hardware_name(const AMDeviceRef device) {
     CFStringRef model = AMDeviceCopyValue(device, 0, CFSTR("HardwareModel"));
+    
+    if (model == NULL)
+    {
+      return CFSTR("Unknown Device");
+    }
+    //printf("Device model: %s\n", CFStringGetCStringPtr(model, CFStringGetSystemEncoding()));
+
     if (kCFCompareEqualTo  == CFStringCompare(model,CFSTR("M68AP"), kCFCompareNonliteral))
         return CFSTR("iPhone");
     if (kCFCompareEqualTo  == CFStringCompare(model,CFSTR("N45AP"), kCFCompareNonliteral))

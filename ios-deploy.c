@@ -16,7 +16,7 @@
 #include <netinet/tcp.h>
 #include "MobileDevice.h"
 
-#define APP_VERSION    "1.3.4"
+#define APP_VERSION    "1.3.5"
 #define PREP_CMDS_PATH "/tmp/fruitstrap-lldb-prep-cmds-"
 #define LLDB_SHELL "lldb -s " PREP_CMDS_PATH
 /*
@@ -312,6 +312,9 @@ CFStringRef copy_xcode_path_for(CFStringRef subPath, CFStringRef search) {
     }
 }
 
+#define GET_FRIENDLY_MODEL_NAME(VALUE, INTERNAL_NAME, FRIENDLY_NAME)  if (kCFCompareEqualTo  == CFStringCompare(VALUE, CFSTR(INTERNAL_NAME), kCFCompareNonliteral)) { return CFSTR( FRIENDLY_NAME); };
+
+
 // Please ensure that device is connected or the name will be unknown
 const CFStringRef get_device_hardware_name(const AMDeviceRef device) {
     CFStringRef model = AMDeviceCopyValue(device, 0, CFSTR("HardwareModel"));
@@ -322,84 +325,60 @@ const CFStringRef get_device_hardware_name(const AMDeviceRef device) {
     }
     //printf("Device model: %s\n", CFStringGetCStringPtr(model, CFStringGetSystemEncoding()));
 
-    if (kCFCompareEqualTo  == CFStringCompare(model,CFSTR("M68AP"), kCFCompareNonliteral))
-        return CFSTR("iPhone");
-    if (kCFCompareEqualTo  == CFStringCompare(model,CFSTR("N45AP"), kCFCompareNonliteral))
-        return CFSTR("iPod touch");
-    if (kCFCompareEqualTo  == CFStringCompare(model,CFSTR("N82AP"), kCFCompareNonliteral))
-        return CFSTR("iPhone 3G");
-    if (kCFCompareEqualTo  == CFStringCompare(model,CFSTR("N72AP"), kCFCompareNonliteral))
-        return CFSTR("iPod touch 2G");
-    if (kCFCompareEqualTo  == CFStringCompare(model,CFSTR("N88AP"), kCFCompareNonliteral))
-        return CFSTR("iPhone 3GS");
-    if (kCFCompareEqualTo  == CFStringCompare(model,CFSTR("N18AP"), kCFCompareNonliteral))
-        return CFSTR("iPod touch 3G");
-    if (kCFCompareEqualTo  == CFStringCompare(model,CFSTR("K48AP"), kCFCompareNonliteral))
-        return CFSTR("iPad");
-    if (kCFCompareEqualTo  == CFStringCompare(model,CFSTR("N90AP"), kCFCompareNonliteral))
-        return CFSTR("iPhone 4 (GSM)");
-    if (kCFCompareEqualTo  == CFStringCompare(model,CFSTR("N81AP"), kCFCompareNonliteral))
-        return CFSTR("iPod touch 4G");
-    if (kCFCompareEqualTo  == CFStringCompare(model,CFSTR("K66AP"), kCFCompareNonliteral))
-        return CFSTR("Apple TV 2G");
-    if (kCFCompareEqualTo  == CFStringCompare(model,CFSTR("N92AP"), kCFCompareNonliteral))
-        return CFSTR("iPhone 4 (CDMA)");
-    if (kCFCompareEqualTo  == CFStringCompare(model,CFSTR("N90BAP"), kCFCompareNonliteral))
-        return CFSTR("iPhone 4 (GSM, revision A)");
-    if (kCFCompareEqualTo  == CFStringCompare(model,CFSTR("K93AP"), kCFCompareNonliteral))
-        return CFSTR("iPad 2");
-    if (kCFCompareEqualTo  == CFStringCompare(model,CFSTR("K94AP"), kCFCompareNonliteral))
-        return CFSTR("iPad 2 (GSM)");
-    if (kCFCompareEqualTo  == CFStringCompare(model,CFSTR("K95AP"), kCFCompareNonliteral))
-        return CFSTR("iPad 2 (CDMA)");
-    if (kCFCompareEqualTo  == CFStringCompare(model,CFSTR("K93AAP"), kCFCompareNonliteral))
-        return CFSTR("iPad 2 (Wi-Fi, revision A)");
-    if (kCFCompareEqualTo  == CFStringCompare(model,CFSTR("P105AP"), kCFCompareNonliteral))
-        return CFSTR("iPad mini");
-    if (kCFCompareEqualTo  == CFStringCompare(model,CFSTR("P106AP"), kCFCompareNonliteral))
-        return CFSTR("iPad mini (GSM)");
-    if (kCFCompareEqualTo  == CFStringCompare(model,CFSTR("P107AP"), kCFCompareNonliteral))
-        return CFSTR("iPad mini (CDMA)");
-    if (kCFCompareEqualTo  == CFStringCompare(model,CFSTR("N94AP"), kCFCompareNonliteral))
-        return CFSTR("iPhone 4S");
-    if (kCFCompareEqualTo  == CFStringCompare(model,CFSTR("N41AP"), kCFCompareNonliteral))
-        return CFSTR("iPhone 5 (GSM)");
-    if (kCFCompareEqualTo  == CFStringCompare(model,CFSTR("N42AP"), kCFCompareNonliteral))
-        return CFSTR("iPhone 5 (Global/CDMA)");
-    if (kCFCompareEqualTo  == CFStringCompare(model,CFSTR("N48AP"), kCFCompareNonliteral))
-        return CFSTR("iPhone 5c (GSM)");
-    if (kCFCompareEqualTo  == CFStringCompare(model,CFSTR("N49AP"), kCFCompareNonliteral))
-        return CFSTR("iPhone 5c (Global/CDMA)");
-    if (kCFCompareEqualTo  == CFStringCompare(model,CFSTR("N51AP"), kCFCompareNonliteral))
-        return CFSTR("iPhone 5s (GSM)");
-    if (kCFCompareEqualTo  == CFStringCompare(model,CFSTR("N53AP"), kCFCompareNonliteral))
-        return CFSTR("iPhone 5s (Global/CDMA)");
-    if (kCFCompareEqualTo  == CFStringCompare(model,CFSTR("N61AP"), kCFCompareNonliteral))
-        return CFSTR("iPhone 6 (GSM)");
-    if (kCFCompareEqualTo  == CFStringCompare(model,CFSTR("J1AP"), kCFCompareNonliteral))
-        return CFSTR("iPad 3");
-    if (kCFCompareEqualTo  == CFStringCompare(model,CFSTR("J2AP"), kCFCompareNonliteral))
-        return CFSTR("iPad 3 (GSM)");
-    if (kCFCompareEqualTo  == CFStringCompare(model,CFSTR("J2AAP"), kCFCompareNonliteral))
-        return CFSTR("iPad 3 (CDMA)");
-    if (kCFCompareEqualTo  == CFStringCompare(model,CFSTR("P101AP"), kCFCompareNonliteral))
-        return CFSTR("iPad 4");
-    if (kCFCompareEqualTo  == CFStringCompare(model,CFSTR("P102AP"), kCFCompareNonliteral))
-        return CFSTR("iPad 4 (GSM)");
-    if (kCFCompareEqualTo  == CFStringCompare(model,CFSTR("P103AP"), kCFCompareNonliteral))
-        return CFSTR("iPad 4 (CDMA)");
-    if (kCFCompareEqualTo  == CFStringCompare(model,CFSTR("N78AP"), kCFCompareNonliteral))
-        return CFSTR("iPod touch 5G");
-    if (kCFCompareEqualTo  == CFStringCompare(model,CFSTR("A1509"), kCFCompareNonliteral))
-        return CFSTR("iPod touch 5G");
-    if (kCFCompareEqualTo  == CFStringCompare(model,CFSTR("J33AP"), kCFCompareNonliteral))
-        return CFSTR("Apple TV 3G");
-    if (kCFCompareEqualTo  == CFStringCompare(model,CFSTR("J33IAP"), kCFCompareNonliteral))
-        return CFSTR("Apple TV 3.1G");
+	//iPod Touch
+
+    GET_FRIENDLY_MODEL_NAME(model, "N45AP",  "iPod Touch")
+    GET_FRIENDLY_MODEL_NAME(model, "N72AP",  "iPod Touch 2G")
+    GET_FRIENDLY_MODEL_NAME(model, "N18AP",  "iPod Touch 3G")
+    GET_FRIENDLY_MODEL_NAME(model, "N81AP",  "iPod Touch 4G")
+    GET_FRIENDLY_MODEL_NAME(model, "N78AP",  "iPod Touch 5G")
+    GET_FRIENDLY_MODEL_NAME(model, "N78AAP", "iPod Touch 5G")
+
+    // iPad
+        
+    GET_FRIENDLY_MODEL_NAME(model, "K48AP",  "iPad")
+    GET_FRIENDLY_MODEL_NAME(model, "K93AP",  "iPad 2")
+    GET_FRIENDLY_MODEL_NAME(model, "K94AP",  "iPad 2 (GSM)")
+    GET_FRIENDLY_MODEL_NAME(model, "K95AP",  "iPad 2 (CDMA)")
+    GET_FRIENDLY_MODEL_NAME(model, "K93AAP", "iPad 2 (Wi-Fi, revision A)")
+    GET_FRIENDLY_MODEL_NAME(model, "J1AP",   "iPad 3")
+    GET_FRIENDLY_MODEL_NAME(model, "J2AP",   "iPad 3 (GSM)")
+    GET_FRIENDLY_MODEL_NAME(model, "J2AAP",  "iPad 3 (CDMA)")
+    GET_FRIENDLY_MODEL_NAME(model, "P101AP", "iPad 4")
+    GET_FRIENDLY_MODEL_NAME(model, "P102AP", "iPad 4 (GSM)")
+    GET_FRIENDLY_MODEL_NAME(model, "P103AP", "iPad 4 (CDMA)")
+        
+    // iPad Mini
+
+    GET_FRIENDLY_MODEL_NAME(model, "P105AP", "iPad mini")
+    GET_FRIENDLY_MODEL_NAME(model, "P106AP", "iPad mini (GSM)")
+    GET_FRIENDLY_MODEL_NAME(model, "P107AP", "iPad mini (CDMA)")
+
+    // Apple TV
+    
+    GET_FRIENDLY_MODEL_NAME(model, "K66AP",  "Apple TV 2G")
+    GET_FRIENDLY_MODEL_NAME(model, "J33AP",  "Apple TV 3G")
+    GET_FRIENDLY_MODEL_NAME(model, "J33IAP", "Apple TV 3.1G")
+        
+    // iPhone
+
+    GET_FRIENDLY_MODEL_NAME(model, "M68AP", "iPhone")
+    GET_FRIENDLY_MODEL_NAME(model, "N82AP", "iPhone 3G")
+    GET_FRIENDLY_MODEL_NAME(model, "N88AP", "iPhone 3GS")
+    GET_FRIENDLY_MODEL_NAME(model, "N90AP", "iPhone 4 (GSM)")
+    GET_FRIENDLY_MODEL_NAME(model, "N92AP", "iPhone 4 (CDMA)")
+    GET_FRIENDLY_MODEL_NAME(model, "N90BAP", "iPhone 4 (GSM, revision A)")
+    GET_FRIENDLY_MODEL_NAME(model, "N94AP", "iPhone 4S")
+    GET_FRIENDLY_MODEL_NAME(model, "N41AP", "iPhone 5 (GSM)")
+    GET_FRIENDLY_MODEL_NAME(model, "N42AP", "iPhone 5 (Global/CDMA)")
+    GET_FRIENDLY_MODEL_NAME(model, "N48AP", "iPhone 5c (GSM)")
+    GET_FRIENDLY_MODEL_NAME(model, "N49AP", "iPhone 5c (Global/CDMA)")
+    GET_FRIENDLY_MODEL_NAME(model, "N51AP", "iPhone 5s (GSM)")
+    GET_FRIENDLY_MODEL_NAME(model, "N53AP", "iPhone 5s (Global/CDMA)")
+    GET_FRIENDLY_MODEL_NAME(model, "N61AP", "iPhone 6 (GSM)")
+    GET_FRIENDLY_MODEL_NAME(model, "N56AP", "iPhone 6 Plus")
 
     return model;
-    //return CFStringCreateWithFormat(NULL, NULL, CFSTR("%s"), hwmodel);
-    //return CFSTR("Unknown Device");
 }
 
 char * MYCFStringCopyUTF8String(CFStringRef aString) {

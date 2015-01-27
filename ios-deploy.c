@@ -96,7 +96,7 @@ def run_command(debugger, command, result, internal_dict):\n\
     lockedstr = ': Locked'\n\
     if lockedstr in str(error):\n\
        print('\\nDevice Locked\\n')\n\
-       sys.exit(254)\n\
+       sys.exit({exitcode_error})\n\
     else:\n\
        print(str(error))\n\
 \n\
@@ -176,8 +176,8 @@ AMDeviceRef best_device_match = NULL;
 
 // Error codes we report on different failures, so scripts can distinguish between user app exit
 // codes and our exit codes. For non app errors we use codes in reserved 128-255 range.
-const int exitcode_error = 253;
-const int exitcode_app_crash = 254;
+const int exitcode_error = SIGTERM;
+const int exitcode_app_crash = SIGABRT;
 
 Boolean path_exists(CFTypeRef path) {
     if (CFGetTypeID(path) == CFStringGetTypeID()) {
@@ -705,6 +705,8 @@ void write_lldb_prep_cmds(AMDeviceRef device, CFURLRef disk_app_url) {
     CFMutableStringRef pmodule = CFStringCreateMutableCopy(NULL, 0, LLDB_FRUITSTRAP_MODULE);
 
     CFRange rangeLLDB = { 0, CFStringGetLength(pmodule) };
+    CFStringRef exitcode_error_str = CFStringCreateWithFormat(NULL, NULL, CFSTR("%d"), exitcode_error);
+    CFStringFindAndReplace(pmodule, CFSTR("{exitcode_error}"), exitcode_error_str, rangeLLDB, 0);
     CFStringRef exitcode_app_crash_str = CFStringCreateWithFormat(NULL, NULL, CFSTR("%d"), exitcode_app_crash);
     CFStringFindAndReplace(pmodule, CFSTR("{exitcode_app_crash}"), exitcode_app_crash_str, rangeLLDB, 0);
     rangeLLDB.length = CFStringGetLength(pmodule);

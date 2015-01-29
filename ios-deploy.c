@@ -16,7 +16,7 @@
 #include <netinet/tcp.h>
 #include "MobileDevice.h"
 
-#define APP_VERSION    "1.3.6"
+#define APP_VERSION    "1.3.7"
 #define PREP_CMDS_PATH "/tmp/fruitstrap-lldb-prep-cmds-"
 #define LLDB_SHELL "lldb -s " PREP_CMDS_PATH
 /*
@@ -841,7 +841,12 @@ server_callback (CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef add
             }
             kill_ptree(child, SIGHUP);
         }
-        exit(exitcode_error);
+        if (justlaunch)
+          //when in justlaunch at times, we get an empty packet at the end.
+          //Assume everything is ok
+          exit(0);
+        else
+          exit(exitcode_error);
         return;
     }
     res = write (CFSocketGetNative (lldb_socket), CFDataGetBytePtr (data), CFDataGetLength (data));

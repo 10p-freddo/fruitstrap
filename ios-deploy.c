@@ -319,6 +319,10 @@ CFStringRef copy_xcode_path_for(CFStringRef subPath, CFStringRef search) {
 const CFStringRef get_device_hardware_name(const AMDeviceRef device) {
     CFStringRef model = AMDeviceCopyValue(device, 0, CFSTR("HardwareModel"));
 
+    if (model == NULL) {
+        return CFSTR("Unknown Device");
+    }
+
     // iPod Touch
     
     GET_FRIENDLY_MODEL_NAME(model, "N45AP",  "iPod Touch")

@@ -1710,7 +1710,7 @@ int main(int argc, char *argv[]) {
             break;
         case 'V':
             show_version();
-            return exitcode_error;
+            return 0;
         case 'p':
             port = atoi(optarg);
             break;

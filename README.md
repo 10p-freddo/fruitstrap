@@ -9,7 +9,7 @@ Install and debug iOS apps without using Xcode. Designed to work on un-jailbroke
 * Xcode 6.1 should be installed
 
 ## Installation
-ios-deploy installation is made simple using the node.js package manager.  If you use [Homebrew](http://brew.sh/), install node.js: 
+ios-deploy installation is made simple using the node.js package manager.  If you use [Homebrew](http://brew.sh/), install node.js:
 ```bash
 brew install node
 ```
@@ -34,14 +34,16 @@ $ npm install -g ios-deploy
       -L, --justlaunch             just launch the app and exit lldb
       -v, --verbose                enable verbose output
       -m, --noinstall              directly start debugging without app install (-d not required)
-      -p, --port <number>          port used for device, default: 12345 
-      -r, --uninstall              uninstall the app before install (do not use with -m; app cache and data are cleared) 
+      -p, --port <number>          port used for device, default: 12345
+      -r, --uninstall              uninstall the app before install (do not use with -m; app cache and data are cleared)
       -1, --bundle_id <bundle id>  specify bundle id for list and upload
       -l, --list                   list files
       -o, --upload <file>          upload file
       -w, --download               download app tree
       -2, --to <target pathname>   use together with up/download file/tree. specify target
-      -V, --version                print the executable version 
+      -V, --version                print the executable version
+      -e, --exists                 check if the app with given bundle_id is installed or not
+
 
 ## Examples
 
@@ -58,7 +60,7 @@ The commands below assume that you have an app called `my.app` with bundle id `b
 
     // Upload a file to your app's Documents folder
     ios-deploy --bundle_id 'bundle.id' --upload test.txt --to Documents/test.txt
-    
+
     // Download your app's Documents, Library and tmp folders
     ios-deploy --bundle_id 'bundle.id' --download --to MyDestinationFolder
 
@@ -67,7 +69,10 @@ The commands below assume that you have an app called `my.app` with bundle id `b
 
     // deploy and debug your app to a connected device, uninstall the app first
     ios-deploy --uninstall --debug --bundle my.app
-    
+
+    // check whether an app by bundle id exists on the device (check return code `echo $?`)
+    ios-deploy --exists --bundle_id com.apple.mobilemail
+
 ## Demo
 
 * The included demo.app represents the minimum required to get code running on iOS.

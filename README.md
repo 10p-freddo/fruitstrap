@@ -73,6 +73,9 @@ The commands below assume that you have an app called `my.app` with bundle id `b
     // check whether an app by bundle id exists on the device (check return code `echo $?`)
     ios-deploy --exists --bundle_id com.apple.mobilemail
 
+    // Download the Documents directory of the app *only*
+    ios-deploy --download=/Documents -bundle_id my.app.id --to ./my_download_location
+
 ## Demo
 
 * The included demo.app represents the minimum required to get code running on iOS.

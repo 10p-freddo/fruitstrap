@@ -16,7 +16,7 @@
 #include <netinet/tcp.h>
 #include "MobileDevice.h"
 
-#define APP_VERSION    "1.3.7"
+#define APP_VERSION    "1.5.1"
 #define PREP_CMDS_PATH "/tmp/fruitstrap-lldb-prep-cmds-"
 #define LLDB_SHELL "lldb -s " PREP_CMDS_PATH
 /*
@@ -61,6 +61,7 @@ const char* lldb_prep_noninteractive_cmds = "\
  */
 #define LLDB_FRUITSTRAP_MODULE CFSTR("\
 import lldb\n\
+import os\n\
 import sys\n\
 import shlex\n\
 \n\
@@ -90,13 +91,14 @@ def connect_command(debugger, command, result, internal_dict):\n\
 \n\
 def run_command(debugger, command, result, internal_dict):\n\
     device_app = internal_dict['fruitstrap_device_app']\n\
+    args = command.split('--',1)\n\
     error = lldb.SBError()\n\
     lldb.target.modules[0].SetPlatformFileSpec(lldb.SBFileSpec(device_app))\n\
-    lldb.target.Launch(lldb.SBLaunchInfo(shlex.split('{args}')), error)\n\
+    lldb.target.Launch(lldb.SBLaunchInfo(shlex.split(args[1] and args[1] or '{args}')), error)\n\
     lockedstr = ': Locked'\n\
     if lockedstr in str(error):\n\
        print('\\nDevice Locked\\n')\n\
-       sys.exit({exitcode_error})\n\
+       os._exit(254)\n\
     else:\n\
        print(str(error))\n\
 \n\
@@ -106,12 +108,16 @@ def safequit_command(debugger, command, result, internal_dict):\n\
     listener.StartListeningForEvents(process.GetBroadcaster(), lldb.SBProcess.eBroadcastBitStateChanged | lldb.SBProcess.eBroadcastBitSTDOUT | lldb.SBProcess.eBroadcastBitSTDERR)\n\
     event = lldb.SBEvent()\n\
     while True:\n\
-        if listener.WaitForEvent(1, event):\n\
-            state = process.GetStateFromEvent(event)\n\
+        if listener.WaitForEvent(1, event) and lldb.SBProcess.EventIsProcessEvent(event):\n\
+            state = lldb.SBProcess.GetStateFromEvent(event)\n\
         else:\n\
-            state = lldb.eStateInvalid\n\
-        process.Detach()\n\
-        sys.exit(0)\n\
+            state = process.GetState()\n\
+\n\
+        if state == lldb.eStateRunning:\n\
+            process.Detach()\n\
+            os._exit(0)\n\
+        elif state > lldb.eStateRunning:\n\
+            os._exit(state)\n\
 \n\
 def autoexit_command(debugger, command, result, internal_dict):\n\
     process = lldb.target.process\n\
@@ -119,10 +125,16 @@ def autoexit_command(debugger, command, result, internal_dict):\n\
     listener.StartListeningForEvents(process.GetBroadcaster(), lldb.SBProcess.eBroadcastBitStateChanged | lldb.SBProcess.eBroadcastBitSTDOUT | lldb.SBProcess.eBroadcastBitSTDERR)\n\
     event = lldb.SBEvent()\n\
     while True:\n\
-        if listener.WaitForEvent(1, event):\n\
-            state = process.GetStateFromEvent(event)\n\
+        if listener.WaitForEvent(1, event) and lldb.SBProcess.EventIsProcessEvent(event):\n\
+            state = lldb.SBProcess.GetStateFromEvent(event)\n\
         else:\n\
-            state = lldb.eStateInvalid\n\
+            state = process.GetState()\n\
+\n\
+        if state == lldb.eStateExited:\n\
+            os._exit(process.GetExitStatus())\n\
+        elif state == lldb.eStateStopped:\n\
+            debugger.HandleCommand('bt')\n\
+            os._exit({exitcode_app_crash})\n\
 \n\
         stdout = process.GetSTDOUT(1024)\n\
         while stdout:\n\
@@ -133,14 +145,6 @@ def autoexit_command(debugger, command, result, internal_dict):\n\
         while stderr:\n\
             sys.stdout.write(stderr)\n\
             stderr = process.GetSTDERR(1024)\n\
-\n\
-        if lldb.SBProcess.EventIsProcessEvent(event):\n\
-            if state == lldb.eStateExited:\n\
-                sys.exit(process.GetExitStatus())\n\
-            if state == lldb.eStateStopped:\n\
-                debugger.HandleCommand('frame select')\n\
-                debugger.HandleCommand('bt')\n\
-                sys.exit({exitcode_app_crash})\n\
 ")
 
 typedef struct am_device * AMDeviceRef;
@@ -164,7 +168,7 @@ char *device_id = NULL;
 char *args = NULL;
 char *list_root = NULL;
 int timeout = 0;
-int port = 12345;
+int port = 0;	// 0 means "dynamically assigned"
 CFStringRef last_path = NULL;
 service_conn_t gdbfd;
 pid_t parent = 0;
@@ -176,8 +180,26 @@ AMDeviceRef best_device_match = NULL;
 
 // Error codes we report on different failures, so scripts can distinguish between user app exit
 // codes and our exit codes. For non app errors we use codes in reserved 128-255 range.
-const int exitcode_error = SIGTERM;
-const int exitcode_app_crash = SIGABRT;
+const int exitcode_error = 253;
+const int exitcode_app_crash = 254;
+
+void fprintCFSTR(FILE* console, CFStringRef formatString, ...) {
+    CFStringRef resultString;
+    CFDataRef data;
+    va_list argList;
+    va_start(argList, formatString);
+    resultString = CFStringCreateWithFormatAndArguments(NULL, NULL,
+                                                        formatString, argList);
+    va_end(argList);
+    data = CFStringCreateExternalRepresentation(NULL, resultString,
+                                                kCFStringEncodingUTF8, '?');
+    if (data != NULL) {
+        fprintf (console, "%.*s\n\n", (int)CFDataGetLength(data),
+                 CFDataGetBytePtr(data));
+        CFRelease(data);
+    }
+    CFRelease(resultString);
+}
 
 Boolean path_exists(CFTypeRef path) {
     if (CFGetTypeID(path) == CFStringGetTypeID()) {
@@ -318,14 +340,12 @@ CFStringRef copy_xcode_path_for(CFStringRef subPath, CFStringRef search) {
 // Please ensure that device is connected or the name will be unknown
 const CFStringRef get_device_hardware_name(const AMDeviceRef device) {
     CFStringRef model = AMDeviceCopyValue(device, 0, CFSTR("HardwareModel"));
-    
-    if (model == NULL)
-    {
-      return CFSTR("Unknown Device");
-    }
-    //printf("Device model: %s\n", CFStringGetCStringPtr(model, CFStringGetSystemEncoding()));
 
-	//iPod Touch
+    if (model == NULL) {
+        return CFSTR("Unknown Device");
+    }
+
+    // iPod Touch
 
     GET_FRIENDLY_MODEL_NAME(model, "N45AP",  "iPod Touch")
     GET_FRIENDLY_MODEL_NAME(model, "N72AP",  "iPod Touch 2G")
@@ -335,7 +355,7 @@ const CFStringRef get_device_hardware_name(const AMDeviceRef device) {
     GET_FRIENDLY_MODEL_NAME(model, "N78AAP", "iPod Touch 5G")
 
     // iPad
-        
+
     GET_FRIENDLY_MODEL_NAME(model, "K48AP",  "iPad")
     GET_FRIENDLY_MODEL_NAME(model, "K93AP",  "iPad 2")
     GET_FRIENDLY_MODEL_NAME(model, "K94AP",  "iPad 2 (GSM)")
@@ -347,7 +367,7 @@ const CFStringRef get_device_hardware_name(const AMDeviceRef device) {
     GET_FRIENDLY_MODEL_NAME(model, "P101AP", "iPad 4")
     GET_FRIENDLY_MODEL_NAME(model, "P102AP", "iPad 4 (GSM)")
     GET_FRIENDLY_MODEL_NAME(model, "P103AP", "iPad 4 (CDMA)")
-        
+
     // iPad Mini
 
     GET_FRIENDLY_MODEL_NAME(model, "P105AP", "iPad mini")
@@ -355,11 +375,11 @@ const CFStringRef get_device_hardware_name(const AMDeviceRef device) {
     GET_FRIENDLY_MODEL_NAME(model, "P107AP", "iPad mini (CDMA)")
 
     // Apple TV
-    
+
     GET_FRIENDLY_MODEL_NAME(model, "K66AP",  "Apple TV 2G")
     GET_FRIENDLY_MODEL_NAME(model, "J33AP",  "Apple TV 3G")
     GET_FRIENDLY_MODEL_NAME(model, "J33IAP", "Apple TV 3.1G")
-        
+
     // iPhone
 
     GET_FRIENDLY_MODEL_NAME(model, "M68AP", "iPhone")
@@ -405,24 +425,16 @@ CFStringRef get_device_full_name(const AMDeviceRef device) {
                 model_name = NULL;
 
     AMDeviceConnect(device);
-    
+
     device_name = AMDeviceCopyValue(device, 0, CFSTR("DeviceName")),
     model_name = get_device_hardware_name(device);
 
     if (verbose)
     {
-      char *devName = MYCFStringCopyUTF8String(device_name);
-      printf("Device Name:[%s]\n",devName);
-      CFShow(device_name);
-      printf("\n");
-      free(devName);
-      
-      char *mdlName = MYCFStringCopyUTF8String(model_name);
-      printf("Model Name:[%s]\n",mdlName);
-        printf("MM: [%s]\n",CFStringGetCStringPtr(model_name, kCFStringEncodingUTF8));
-      CFShow(model_name);
-      printf("\n");
-      free(mdlName);
+      if (device_name != NULL)
+          fprintCFSTR(stdout, CFSTR("Device Name:[%@]\n"), device_name);
+      if (model_name != NULL)
+          fprintCFSTR(stdout, CFSTR("Model Name:[%@]\n"), model_name);
     }
 
     if(device_name != NULL && model_name != NULL)
@@ -656,10 +668,10 @@ CFURLRef copy_device_app_url(AMDeviceRef device, CFStringRef identifier) {
                   @"UIStatusBarHidden",
                   @"UISupportedInterfaceOrientations",
                   nil];
-    
+
     NSDictionary *optionsDict = [NSDictionary dictionaryWithObject:a forKey:@"ReturnAttributes"];
 	CFDictionaryRef options = (CFDictionaryRef)optionsDict;
-    
+
     afc_error_t resultStatus = AMDeviceLookupApplications(device, options, &result);
     assert(resultStatus == 0);
 
@@ -705,8 +717,6 @@ void write_lldb_prep_cmds(AMDeviceRef device, CFURLRef disk_app_url) {
     CFMutableStringRef pmodule = CFStringCreateMutableCopy(NULL, 0, LLDB_FRUITSTRAP_MODULE);
 
     CFRange rangeLLDB = { 0, CFStringGetLength(pmodule) };
-    CFStringRef exitcode_error_str = CFStringCreateWithFormat(NULL, NULL, CFSTR("%d"), exitcode_error);
-    CFStringFindAndReplace(pmodule, CFSTR("{exitcode_error}"), exitcode_error_str, rangeLLDB, 0);
     CFStringRef exitcode_app_crash_str = CFStringCreateWithFormat(NULL, NULL, CFSTR("%d"), exitcode_app_crash);
     CFStringFindAndReplace(pmodule, CFSTR("{exitcode_app_crash}"), exitcode_app_crash_str, rangeLLDB, 0);
     rangeLLDB.length = CFStringGetLength(pmodule);
@@ -717,13 +727,13 @@ void write_lldb_prep_cmds(AMDeviceRef device, CFURLRef disk_app_url) {
         rangeLLDB.length = CFStringGetLength(pmodule);
         CFStringFindAndReplace(pmodule, CFSTR("{args}"), cf_args, rangeLLDB, 0);
 
-        //printf("write_lldb_prep_cmds:args: [%s][%s]\n", CFStringGetCStringPtr (cmds,kCFStringEncodingMacRoman), 
+        //printf("write_lldb_prep_cmds:args: [%s][%s]\n", CFStringGetCStringPtr (cmds,kCFStringEncodingMacRoman),
         //    CFStringGetCStringPtr(pmodule, kCFStringEncodingMacRoman));
         CFRelease(cf_args);
     } else {
         CFStringFindAndReplace(cmds, CFSTR("{args}"), CFSTR(""), range, 0);
         CFStringFindAndReplace(pmodule, CFSTR("{args}"), CFSTR(""), rangeLLDB, 0);
-        //printf("write_lldb_prep_cmds: [%s][%s]\n", CFStringGetCStringPtr (cmds,kCFStringEncodingMacRoman), 
+        //printf("write_lldb_prep_cmds: [%s][%s]\n", CFStringGetCStringPtr (cmds,kCFStringEncodingMacRoman),
         //    CFStringGetCStringPtr(pmodule, kCFStringEncodingMacRoman));
     }
     range.length = CFStringGetLength(cmds);
@@ -826,27 +836,9 @@ server_callback (CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef add
     int res;
 
     if (CFDataGetLength (data) == 0) {
-        // FIXME: Close the socket
-        //shutdown (CFSocketGetNative (lldb_socket), SHUT_RDWR);
-        //close (CFSocketGetNative (lldb_socket));
-        CFSocketInvalidate(lldb_socket);
-        CFSocketInvalidate(server_socket);
-        int mypid = getpid();
-        assert((child != 0) && (child != mypid)); //child should not be here
-        if ((parent != 0) && (parent == mypid) && (child != 0))
-        {
-            if (verbose)
-            {
-                printf("Got an empty packet hence killing child (%d) tree\n", child);
-            }
-            kill_ptree(child, SIGHUP);
-        }
-        if (justlaunch)
-          //when in justlaunch at times, we get an empty packet at the end.
-          //Assume everything is ok
-          exit(0);
-        else
-          exit(exitcode_error);
+        // close the socket on which we've got end-of-file, the server_socket.
+        CFSocketInvalidate(s);
+        CFRelease(s);
         return;
     }
     res = write (CFSocketGetNative (lldb_socket), CFDataGetBytePtr (data), CFDataGetLength (data));
@@ -856,8 +848,12 @@ void lldb_callback(CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef a
 {
     //printf ("lldb: %s\n", CFDataGetBytePtr (data));
 
-    if (CFDataGetLength (data) == 0)
+    if (CFDataGetLength (data) == 0) {
+        // close the socket on which we've got end-of-file, the lldb_socket.
+        CFSocketInvalidate(s);
+        CFRelease(s);
         return;
+    }
     write (gdbfd, CFDataGetBytePtr (data), CFDataGetLength (data));
 }
 
@@ -868,21 +864,20 @@ void fdvendor_callback(CFSocketRef s, CFSocketCallBackType callbackType, CFDataR
     //PRINT ("callback!\n");
 
     lldb_socket  = CFSocketCreateWithNative(NULL, socket, kCFSocketDataCallBack, &lldb_callback, NULL);
+    int flag = 1;
+    int res = setsockopt(socket, IPPROTO_TCP, TCP_NODELAY, (char *) &flag, sizeof(flag));
+    assert(res == 0);
     CFRunLoopAddSource(CFRunLoopGetMain(), CFSocketCreateRunLoopSource(NULL, lldb_socket, 0), kCFRunLoopCommonModes);
+
+    CFSocketInvalidate(s);
+    CFRelease(s);
 }
 
 void start_remote_debug_server(AMDeviceRef device) {
-    char buf [256];
-    int res, err, i;
-    char msg [256];
-    int chsum, len;
-    struct stat s;
-    socklen_t buflen;
-    struct sockaddr name;
-    int namelen;
 
-    assert(AMDeviceStartService(device, CFSTR("com.apple.debugserver"), &gdbfd, NULL) == 0);
-    assert (gdbfd);
+    int res = AMDeviceStartService(device, CFSTR("com.apple.debugserver"), &gdbfd, NULL);
+    assert(res == 0);
+    assert(gdbfd > 0);
 
     /*
      * The debugserver connection is through a fd handle, while lldb requires a host/port to connect, so create an intermediate
@@ -896,20 +891,24 @@ void start_remote_debug_server(AMDeviceRef device) {
     addr4.sin_len = sizeof(addr4);
     addr4.sin_family = AF_INET;
     addr4.sin_port = htons(port);
-    addr4.sin_addr.s_addr = htonl(INADDR_ANY);
+    addr4.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 
     CFSocketRef fdvendor = CFSocketCreate(NULL, PF_INET, 0, 0, kCFSocketAcceptCallBack, &fdvendor_callback, NULL);
 
-    int yes = 1;
-    setsockopt(CFSocketGetNative(fdvendor), SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
-    int flag = 1;
-    res = setsockopt(CFSocketGetNative(fdvendor), IPPROTO_TCP, TCP_NODELAY, (char *) &flag, sizeof(int));
-    assert (res == 0);
+    if (port) {
+        int yes = 1;
+        setsockopt(CFSocketGetNative(fdvendor), SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
+    }
 
     CFDataRef address_data = CFDataCreate(NULL, (const UInt8 *)&addr4, sizeof(addr4));
 
     CFSocketSetAddress(fdvendor, address_data);
     CFRelease(address_data);
+    socklen_t addrlen = sizeof(addr4);
+    res = getsockname(CFSocketGetNative(fdvendor),(struct sockaddr *)&addr4,&addrlen);
+    assert(res == 0);
+    port = ntohs(addr4.sin_port);
+
     CFRunLoopAddSource(CFRunLoopGetMain(), CFSocketCreateRunLoopSource(NULL, fdvendor, 0), kCFRunLoopCommonModes);
 }
 
@@ -985,38 +984,38 @@ void setup_dummy_pipe_on_stdin(int pfd[2]) {
 void setup_lldb(AMDeviceRef device, CFURLRef url) {
     CFStringRef device_full_name = get_device_full_name(device),
     device_interface_name = get_device_interface_name(device);
-    
+
     AMDeviceConnect(device);
     assert(AMDeviceIsPaired(device));
     assert(AMDeviceValidatePairing(device) == 0);
     assert(AMDeviceStartSession(device) == 0);
-    
+
     printf("------ Debug phase ------\n");
-    
+
     if(AMDeviceGetInterfaceType(device) == 2)
     {
-        printf("Cannot debug %s over %s.\n", CFStringGetCStringPtr(device_full_name, CFStringGetSystemEncoding()), CFStringGetCStringPtr(device_interface_name, CFStringGetSystemEncoding()));
+        fprintCFSTR(stdout, CFSTR("Cannot debug %@ over %@.\n"), device_full_name, device_interface_name);
         exit(0);
     }
-    
-    printf("Starting debug of %s connected through %s...\n", CFStringGetCStringPtr(device_full_name, CFStringGetSystemEncoding()), CFStringGetCStringPtr(device_interface_name, CFStringGetSystemEncoding()));
-    
+
+    fprintCFSTR(stdout, CFSTR("Starting debug of %@ connected through %@...\n"), device_full_name, device_interface_name);
+
     mount_developer_image(device);      // put debugserver on the device
     start_remote_debug_server(device);  // start debugserver
     write_lldb_prep_cmds(device, url);   // dump the necessary lldb commands into a file
-    
+
     CFRelease(url);
-    
+
     printf("[100%%] Connecting to remote debug server\n");
     printf("-------------------------\n");
-    
+
     setpgid(getpid(), 0);
     signal(SIGHUP, killed);
     signal(SIGINT, killed);
     signal(SIGTERM, killed);
     // Need this before fork to avoid race conditions. For child process we remove this right after fork.
     signal(SIGLLDB, lldb_finished_handler);
-    
+
     parent = getpid();
 }
 
@@ -1050,7 +1049,7 @@ void launch_debugger(AMDeviceRef device, CFURLRef url) {
 
         close(pfd[0]);
         close(pfd[1]);
-        
+
         // Notify parent we're exiting
         kill(parent, SIGLLDB);
         // Pass lldb exit code
@@ -1073,21 +1072,21 @@ void launch_debugger_and_exit(AMDeviceRef device, CFURLRef url) {
         signal(SIGHUP, SIG_DFL);
         signal(SIGLLDB, SIG_DFL);
         child = getpid();
-        
+
         if (dup2(pfd[0],STDIN_FILENO) == -1)
             perror("dup2 failed");
-        
+
         char lldb_shell[400];
         sprintf(lldb_shell, LLDB_SHELL);
         if(device_id != NULL)
             strcat(lldb_shell, device_id);
-        
+
         int status = system(lldb_shell); // launch lldb
         if (status == -1)
             perror("failed launching lldb");
-        
+
         close(pfd[0]);
-        
+
         // Notify parent we're exiting
         kill(parent, SIGLLDB);
         // Pass lldb exit code
@@ -1138,20 +1137,20 @@ CFStringRef get_bundle_id(CFURLRef app_url)
     return bundle_id;
 }
 
-              
+
 void read_dir(service_conn_t afcFd, afc_connection* afc_conn_p, const char* dir,
               void(*callback)(afc_connection *conn,const char *dir,int file))
 {
     char *dir_ent;
-    
+
     afc_connection afc_conn;
     if (!afc_conn_p) {
         afc_conn_p = &afc_conn;
         AFCConnectionOpen(afcFd, 0, &afc_conn_p);
     }
-    
+
     printf("%s\n", dir);
-    
+
     afc_dictionary* afc_dict_p;
     char *key, *val;
     int not_dir = 0;
@@ -1161,7 +1160,7 @@ void read_dir(service_conn_t afcFd, afc_connection* afc_conn_p, const char* dir,
         // there was a problem reading or opening the file to get info on it, abort
         return;
     }
-    
+
     while((AFCKeyValueRead(afc_dict_p,&key,&val) == 0) && key && val) {
         if (strcmp(key,"st_ifmt")==0) {
             not_dir = strcmp(val,"S_IFDIR");
@@ -1177,23 +1176,23 @@ void read_dir(service_conn_t afcFd, afc_connection* afc_conn_p, const char* dir,
 
     afc_directory* afc_dir_p;
     afc_error_t err = AFCDirectoryOpen(afc_conn_p, dir, &afc_dir_p);
-    
+
     if (err != 0) {
         // Couldn't open dir - was probably a file
         return;
     } else {
         if (callback) (*callback)(afc_conn_p, dir, not_dir);
     }
-    
+
     while(true) {
         err = AFCDirectoryRead(afc_conn_p, afc_dir_p, &dir_ent);
-        
+
         if (err != 0 || !dir_ent)
             break;
-        
+
         if (strcmp(dir_ent, ".") == 0 || strcmp(dir_ent, "..") == 0)
             continue;
-        
+
         char* dir_joined = malloc(strlen(dir) + strlen(dir_ent) + 2);
         strcpy(dir_joined, dir);
         if (dir_joined[strlen(dir)-1] != '/')
@@ -1202,7 +1201,7 @@ void read_dir(service_conn_t afcFd, afc_connection* afc_conn_p, const char* dir,
         read_dir(afcFd, afc_conn_p, dir_joined, callback);
         free(dir_joined);
     }
-    
+
     AFCDirectoryClose(afc_conn_p, afc_dir_p);
 }
 
@@ -1213,25 +1212,25 @@ service_conn_t start_house_arrest_service(AMDeviceRef device) {
     assert(AMDeviceIsPaired(device));
     assert(AMDeviceValidatePairing(device) == 0);
     assert(AMDeviceStartSession(device) == 0);
-    
+
     service_conn_t houseFd;
-    
+
     if (bundle_id == NULL) {
         printf("Bundle id is not specified\n");
         exit(1);
     }
-    
+
     CFStringRef cf_bundle_id = CFStringCreateWithCString(NULL, bundle_id, kCFStringEncodingASCII);
     if (AMDeviceStartHouseArrestService(device, cf_bundle_id, 0, &houseFd, 0) != 0)
     {
         printf("Unable to find bundle with id: %s\n", bundle_id);
         exit(1);
     }
-    
+
     assert(AMDeviceStopSession(device) == 0);
     assert(AMDeviceDisconnect(device) == 0);
     CFRelease(cf_bundle_id);
-    
+
     return houseFd;
 }
 
@@ -1259,7 +1258,7 @@ void* read_file_to_memory(char * path, size_t* file_size)
     {
         return NULL;
     }
-    
+
     *file_size = buf.st_size;
     FILE* fd = fopen(path, "r");
     char* content = malloc(*file_size);
@@ -1275,12 +1274,46 @@ void* read_file_to_memory(char * path, size_t* file_size)
 void list_files(AMDeviceRef device)
 {
     service_conn_t houseFd = start_house_arrest_service(device);
-    
+
     afc_connection* afc_conn_p;
     if (AFCConnectionOpen(houseFd, 0, &afc_conn_p) == 0) {
         read_dir(houseFd, afc_conn_p, list_root?list_root:"/", NULL);
         AFCConnectionClose(afc_conn_p);
     }
+}
+
+int app_exists(AMDeviceRef device)
+{
+    if (bundle_id == NULL) {
+        printf("Bundle id is not specified\n");
+        return false;
+    }
+
+    AMDeviceConnect(device);
+    assert(AMDeviceIsPaired(device));
+    assert(AMDeviceValidatePairing(device) == 0);
+    assert(AMDeviceStartSession(device) == 0);
+
+    CFStringRef cf_bundle_id = CFStringCreateWithCString(NULL, bundle_id, kCFStringEncodingASCII);
+
+    NSArray *a = [NSArray arrayWithObjects:@"CFBundleIdentifier", nil];
+    NSDictionary *optionsDict = [NSDictionary dictionaryWithObject:a forKey:@"ReturnAttributes"];
+    CFDictionaryRef options = (CFDictionaryRef)optionsDict;
+
+    CFDictionaryRef result = nil;
+    afc_error_t resultStatus = AMDeviceLookupApplications(device, options, &result);
+    assert(resultStatus == 0);
+
+    CFDictionaryRef app_dict = CFDictionaryGetValue(result, cf_bundle_id);
+
+    int appExists = (app_dict == NULL) ? -1 : 0;
+
+    CFRelease(cf_bundle_id);
+
+    assert(AMDeviceStopSession(device) == 0);
+    assert(AMDeviceDisconnect(device) == 0);
+
+    return appExists;
 }
 
 void copy_file_callback(afc_connection* afc_conn_p, const char *name,int file)
@@ -1376,15 +1409,15 @@ void download_tree(AMDeviceRef device)
 
 void upload_file(AMDeviceRef device) {
     service_conn_t houseFd = start_house_arrest_service(device);
-    
+
     afc_file_ref file_ref;
-    
+
     afc_connection afc_conn;
     afc_connection* afc_conn_p = &afc_conn;
     AFCConnectionOpen(houseFd, 0, &afc_conn_p);
-    
+
     //        read_dir(houseFd, NULL, "/", NULL);
-    
+
     if (!target_filename)
     {
         target_filename = get_filename_from_path(upload_pathname);
@@ -1392,7 +1425,7 @@ void upload_file(AMDeviceRef device) {
 
     size_t file_size;
     void* file_content = read_file_to_memory(upload_pathname, &file_size);
-    
+
     if (!file_content)
     {
         printf("Could not open file: %s\n", upload_pathname);
@@ -1412,7 +1445,7 @@ void upload_file(AMDeviceRef device) {
         *lastSlash = '\0';
         assert(AFCDirectoryCreate(afc_conn_p, dirpath) == 0);
     }
-    
+
 
     int ret = AFCFileRefOpen(afc_conn_p, target_filename, 3, &file_ref);
     if (ret == 0x000a) {
@@ -1427,12 +1460,12 @@ void upload_file(AMDeviceRef device) {
     assert(AFCFileRefWrite(afc_conn_p, file_ref, file_content, file_size) == 0);
     assert(AFCFileRefClose(afc_conn_p, file_ref) == 0);
     assert(AFCConnectionClose(afc_conn_p) == 0);
-    
+
     free(file_content);
 }
 
 void handle_device(AMDeviceRef device) {
-    //if (found_device) 
+    //if (found_device)
     //    return; // handle one device only
 
     CFStringRef found_device_id = AMDeviceCopyDeviceIdentifier(device),
@@ -1440,7 +1473,8 @@ void handle_device(AMDeviceRef device) {
                 device_interface_name = get_device_interface_name(device);
 
     if (detect_only) {
-        printf("[....] Found %s connected through %s.\n", CFStringGetCStringPtr(device_full_name, CFStringGetSystemEncoding()), CFStringGetCStringPtr(device_interface_name, CFStringGetSystemEncoding()));
+        fprintCFSTR(stdout, CFSTR("[....] Found %@ connected through %@.\n"), device_full_name, device_interface_name);
+        //printf("[....] Found %s connected through %s.\n", CFStringGetCStringPtr(device_full_name, CFStringGetSystemEncoding()), CFStringGetCStringPtr(device_interface_name, CFStringGetSystemEncoding()));
         found_device = true;
         return;
     }
@@ -1448,7 +1482,7 @@ void handle_device(AMDeviceRef device) {
         if(strcmp(device_id, CFStringGetCStringPtr(found_device_id, CFStringGetSystemEncoding())) == 0) {
             found_device = true;
         } else {
-            printf("Skipping %s.\n", CFStringGetCStringPtr(device_full_name, CFStringGetSystemEncoding()));
+            fprintCFSTR(stdout, CFSTR("Skipping %@.\n"), device_full_name);
             return;
         }
     } else {
@@ -1456,8 +1490,8 @@ void handle_device(AMDeviceRef device) {
         found_device = true;
     }
 
-    printf("[....] Using %s (%s).\n", CFStringGetCStringPtr(device_full_name, CFStringGetSystemEncoding()), CFStringGetCStringPtr(found_device_id, CFStringGetSystemEncoding()));
-    
+    fprintCFSTR(stdout, CFSTR("[....] Using %@ (%@).\n"), device_full_name, found_device_id);
+
     if (command_only) {
         if (strcmp("list", command) == 0) {
             list_files(device);
@@ -1465,6 +1499,8 @@ void handle_device(AMDeviceRef device) {
             upload_file(device);
         } else if (strcmp("download", command) == 0) {
             download_tree(device);
+        } else if (strcmp("exists", command) == 0) {
+            exit(app_exists(device));
         }
         exit(0);
     }
@@ -1489,7 +1525,7 @@ void handle_device(AMDeviceRef device) {
             assert(AMDeviceIsPaired(device));
             assert(AMDeviceValidatePairing(device) == 0);
             assert(AMDeviceStartSession(device) == 0);
-            
+
             int code = AMDeviceSecureUninstallApplication(0, device, bundle_id, 0, NULL, 0);
             if (code == 0) {
                 printf("[ OK ] Uninstalled package with bundle id %s\n", CFStringGetCStringPtr(bundle_id, CFStringGetSystemEncoding()));
@@ -1503,7 +1539,7 @@ void handle_device(AMDeviceRef device) {
 
     if(install) {
         printf("------ Install phase ------\n");
-        printf("[  0%%] Found %s connected through %s, beginning install\n", CFStringGetCStringPtr(device_full_name, CFStringGetSystemEncoding()), CFStringGetCStringPtr(device_interface_name, CFStringGetSystemEncoding()));
+        fprintCFSTR(stdout, CFSTR("[  0%%] Found %@ connected through %@, beginning install\n"), device_full_name, device_interface_name);
 
         AMDeviceConnect(device);
         assert(AMDeviceIsPaired(device));
@@ -1526,7 +1562,7 @@ void handle_device(AMDeviceRef device) {
 
         close(afcFd);
 
-        
+
 
         AMDeviceConnect(device);
         assert(AMDeviceIsPaired(device));
@@ -1562,9 +1598,9 @@ void handle_device(AMDeviceRef device) {
         printf("[100%%] Installed package %s\n", app_path);
     }
 
-    if (!debug) 
+    if (!debug)
         exit(0); // no debug phase
-    
+
     if (justlaunch)
         launch_debugger_and_exit(device, url);
     else
@@ -1577,7 +1613,7 @@ void device_callback(struct am_device_notification_callback_info *info, void *ar
             if(device_id != NULL || !debug || AMDeviceGetInterfaceType(info->dev) != 2) {
                 handle_device(info->dev);
             } else if(best_device_match == NULL) {
-                best_device_match = info->dev; 
+                best_device_match = info->dev;
                 CFRetain(best_device_match);
             }
         default:
@@ -1604,7 +1640,7 @@ void timeout_callback(CFRunLoopTimerRef timer, void *info) {
       if (!debug) {
           printf("[....] No more devices found.\n");
       }
-      
+
       if (detect_only && !found_device) {
           exit(exitcode_error);
           return;
@@ -1638,14 +1674,15 @@ void usage(const char* app) {
         "  -L, --justlaunch             just launch the app and exit lldb\n"
         "  -v, --verbose                enable verbose output\n"
         "  -m, --noinstall              directly start debugging without app install (-d not required)\n"
-        "  -p, --port <number>          port used for device, default: 12345 \n"
+        "  -p, --port <number>          port used for device, default: dynamic\n"
         "  -r, --uninstall              uninstall the app before install (do not use with -m; app cache and data are cleared) \n"
         "  -1, --bundle_id <bundle id>  specify bundle id for list and upload\n"
         "  -l, --list                   list files\n"
         "  -o, --upload <file>          upload file\n"
         "  -w, --download               download app tree\n"
         "  -2, --to <target pathname>   use together with up/download file/tree. specify target\n"
-        "  -V, --version                print the executable version \n",
+        "  -V, --version                print the executable version \n"
+        "  -e, --exists                 check if the app with given bundle_id is installed or not \n",
         app);
 }
 
@@ -1675,11 +1712,12 @@ int main(int argc, char *argv[]) {
         { "upload", required_argument, NULL, 'o'},
         { "download", optional_argument, NULL, 'w'},
         { "to", required_argument, NULL, '2'},
+        { "exists", no_argument, NULL, 'e'},
         { NULL, 0, NULL, 0 },
     };
     char ch;
 
-    while ((ch = getopt_long(argc, argv, "VmcdvunrILi:b:a:t:g:x:p:1:2:o:l::w::", longopts, NULL)) != -1)
+    while ((ch = getopt_long(argc, argv, "VmcdvunrILei:b:a:t:g:x:p:1:2:o:l::w::", longopts, NULL)) != -1)
     {
         switch (ch) {
         case 'm':
@@ -1716,7 +1754,6 @@ int main(int argc, char *argv[]) {
         case 'L':
             interactive = false;
             justlaunch = true;
-            debug = 1;
             break;
         case 'c':
             detect_only = true;
@@ -1724,7 +1761,7 @@ int main(int argc, char *argv[]) {
             break;
         case 'V':
             show_version();
-            return exitcode_error;
+            return 0;
         case 'p':
             port = atoi(optarg);
             break;
@@ -1751,6 +1788,10 @@ int main(int argc, char *argv[]) {
             command_only = true;
             command = "download";
             list_root = optarg;
+            break;
+        case 'e':
+            command_only = true;
+            command = "exists";
             break;
         default:
             usage(argv[0]);
@@ -1792,4 +1833,3 @@ int main(int argc, char *argv[]) {
     AMDeviceNotificationSubscribe(&device_callback, 0, 0, NULL, &notify);
     CFRunLoopRun();
 }
-

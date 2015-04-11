@@ -42,6 +42,7 @@ $ npm install -g ios-deploy
       -w, --download               download app tree
       -2, --to <target pathname>   use together with up/download file/tree. specify target
       -V, --version                print the executable version 
+      -e, --exists                 check if the app with given bundle_id is installed or not
 
 ## Examples
 
@@ -68,6 +69,12 @@ The commands below assume that you have an app called `my.app` with bundle id `b
     // deploy and debug your app to a connected device, uninstall the app first
     ios-deploy --uninstall --debug --bundle my.app
     
+    // check whether an app by bundle id exists on the device (check return code `echo $?`)
+    ios-deploy --exists --bundle_id com.apple.mobilemail
+
+    // Download the Documents directory of the app *only*
+    ios-deploy --download=/Documents -bundle_id my.app.id --to ./my_download_location
+
 ## Demo
 
 * The included demo.app represents the minimum required to get code running on iOS.

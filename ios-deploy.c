@@ -1454,6 +1454,33 @@ void upload_file(AMDeviceRef device) {
     free(file_content);
 }
 
+void make_directory(AMDeviceRef device) {
+    service_conn_t houseFd = start_house_arrest_service(device);
+
+    afc_file_ref file_ref;
+
+    afc_connection afc_conn;
+    afc_connection* afc_conn_p = &afc_conn;
+    AFCConnectionOpen(houseFd, 0, &afc_conn_p);
+
+    assert(AFCDirectoryCreate(afc_conn_p, target_filename) == 0);
+    assert(AFCConnectionClose(afc_conn_p) == 0);
+}
+
+void remove_path(AMDeviceRef device) {
+    service_conn_t houseFd = start_house_arrest_service(device);
+
+    afc_file_ref file_ref;
+
+    afc_connection afc_conn;
+    afc_connection* afc_conn_p = &afc_conn;
+    AFCConnectionOpen(houseFd, 0, &afc_conn_p);
+
+
+    assert(AFCRemovePath(afc_conn_p, target_filename) == 0);
+    assert(AFCConnectionClose(afc_conn_p) == 0);
+}
+
 void handle_device(AMDeviceRef device) {
     //if (found_device)
     //    return; // handle one device only
@@ -1488,6 +1515,10 @@ void handle_device(AMDeviceRef device) {
             upload_file(device);
         } else if (strcmp("download", command) == 0) {
             download_tree(device);
+        } else if (strcmp("mkdir", command) == 0) {
+            make_directory(device);
+        } else if (strcmp("rm", command) == 0) {
+            remove_path(device);
         } else if (strcmp("exists", command) == 0) {
             exit(app_exists(device));
         }
@@ -1670,6 +1701,8 @@ void usage(const char* app) {
         "  -o, --upload <file>          upload file\n"
         "  -w, --download               download app tree\n"
         "  -2, --to <target pathname>   use together with up/download file/tree. specify target\n"
+        "  -D, --mkdir <dir>            make directory on device\n"
+        "  -R, --rm <path>              remove file or directory on device (directories must be empty)\n"
         "  -V, --version                print the executable version \n"
         "  -e, --exists                 check if the app with given bundle_id is installed or not \n",
         app);
@@ -1701,6 +1734,8 @@ int main(int argc, char *argv[]) {
         { "upload", required_argument, NULL, 'o'},
         { "download", optional_argument, NULL, 'w'},
         { "to", required_argument, NULL, '2'},
+        { "mkdir", required_argument, NULL, 'D'},
+        { "rm", required_argument, NULL, 'R'},
         { "exists", no_argument, NULL, 'e'},
         { NULL, 0, NULL, 0 },
     };
@@ -1777,6 +1812,16 @@ int main(int argc, char *argv[]) {
             command_only = true;
             command = "download";
             list_root = optarg;
+            break;
+        case 'D':
+            command_only = true;
+            target_filename = optarg;
+            command = "mkdir";
+            break;
+        case 'R':
+            command_only = true;
+            target_filename = optarg;
+            command = "rm";
             break;
         case 'e':
             command_only = true;

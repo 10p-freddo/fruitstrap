@@ -41,6 +41,8 @@ $ npm install -g ios-deploy
       -o, --upload <file>          upload file
       -w, --download               download app tree
       -2, --to <target pathname>   use together with up/download file/tree. specify target
+      -D, --mkdir <dir>            make directory on device
+      -R, --rm <path>              remove file or directory on device (directories must be empty)
       -V, --version                print the executable version
       -e, --exists                 check if the app with given bundle_id is installed or not
 

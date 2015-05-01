@@ -16,7 +16,7 @@
 #include <netinet/tcp.h>
 #include "MobileDevice.h"
 
-#define APP_VERSION    "1.5.2"
+#define APP_VERSION    "1.5.3"
 #define PREP_CMDS_PATH "/tmp/fruitstrap-lldb-prep-cmds-"
 #define LLDB_SHELL "lldb -s " PREP_CMDS_PATH
 /*
@@ -1518,10 +1518,13 @@ void handle_device(AMDeviceRef device) {
         return;
     }
     if (device_id != NULL) {
-        if(strcmp(device_id, CFStringGetCStringPtr(found_device_id, CFStringGetSystemEncoding())) == 0) {
+        CFStringRef deviceCFSTR = CFStringCreateWithCString(NULL, device_id, kCFStringEncodingASCII);
+        if (CFStringCompare(deviceCFSTR, found_device_id, kCFCompareCaseInsensitive) == kCFCompareEqualTo) {
             found_device = true;
+            CFRelease(deviceCFSTR);
         } else {
             fprintCFSTR(stdout, CFSTR("Skipping %@.\n"), device_full_name);
+            CFRelease(deviceCFSTR);
             return;
         }
     } else {

@@ -1518,10 +1518,13 @@ void handle_device(AMDeviceRef device) {
         return;
     }
     if (device_id != NULL) {
-        if(strcmp(device_id, CFStringGetCStringPtr(found_device_id, CFStringGetSystemEncoding())) == 0) {
+        CFStringRef deviceCFSTR = CFStringCreateWithCString(NULL, device_id, kCFStringEncodingASCII);
+        if (CFStringCompare(deviceCFSTR, found_device_id, kCFCompareCaseInsensitive) == kCFCompareEqualTo) {
             found_device = true;
+            CFRelease(deviceCFSTR);
         } else {
             fprintCFSTR(stdout, CFSTR("Skipping %@.\n"), device_full_name);
+            CFRelease(deviceCFSTR);
             return;
         }
     } else {

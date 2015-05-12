@@ -1481,6 +1481,40 @@ void remove_path(AMDeviceRef device) {
     assert(AFCConnectionClose(afc_conn_p) == 0);
 }
 
+void uninstall_app(AMDeviceRef device) {
+    CFRetain(device); // don't know if this is necessary?
+
+    printf("------ Uninstall phase ------\n");
+
+    //Do we already have the bundle_id passed in via the command line? if so, use it.
+    CFStringRef cf_uninstall_bundle_id = NULL;
+    if (bundle_id != NULL)
+    {
+        cf_uninstall_bundle_id = CFStringCreateWithCString(NULL, bundle_id, kCFStringEncodingASCII);
+    } else {
+        printf ("Error: you need to pass in the bundle id, (i.e. --bundle_id com.my.app)");
+        exit(1);
+    }
+
+    if (cf_uninstall_bundle_id == NULL) {
+        printf("Error: Unable to get bundle id from user command or package %s\n Uninstall failed\n", app_path);
+    } else {
+        AMDeviceConnect(device);
+        assert(AMDeviceIsPaired(device));
+        assert(AMDeviceValidatePairing(device) == 0);
+        assert(AMDeviceStartSession(device) == 0);
+
+        int code = AMDeviceSecureUninstallApplication(0, device, cf_uninstall_bundle_id, 0, NULL, 0);
+        if (code == 0) {
+            printf("[ OK ] Uninstalled package with bundle id %s\n", CFStringGetCStringPtr(cf_uninstall_bundle_id, CFStringGetSystemEncoding()));
+        } else {
+            printf("[ ERROR ] Could not uninstall package with bundle id %s\n", CFStringGetCStringPtr(cf_uninstall_bundle_id, CFStringGetSystemEncoding()));
+        }
+        assert(AMDeviceStopSession(device) == 0);
+        assert(AMDeviceDisconnect(device) == 0);
+    }
+}
+
 void handle_device(AMDeviceRef device) {
     //if (found_device)
     //    return; // handle one device only
@@ -1521,6 +1555,8 @@ void handle_device(AMDeviceRef device) {
             remove_path(device);
         } else if (strcmp("exists", command) == 0) {
             exit(app_exists(device));
+        } else if (strcmp("uninstall_only", command) == 0) {
+            uninstall_app(device);
         }
         exit(0);
     }
@@ -1537,20 +1573,28 @@ void handle_device(AMDeviceRef device) {
     if (uninstall) {
         printf("------ Uninstall phase ------\n");
 
-        CFStringRef bundle_id = get_bundle_id(url);
-        if (bundle_id == NULL) {
-            printf("Error: Unable to get bundle id from package %s\n Uninstall failed\n", app_path);
+        //Do we already have the bundle_id passed in via the command line? if so, use it.
+        CFStringRef cf_uninstall_bundle_id = NULL;
+        if (bundle_id != NULL)
+        {
+            cf_uninstall_bundle_id = CFStringCreateWithCString(NULL, bundle_id, kCFStringEncodingASCII);
+        } else {
+            cf_uninstall_bundle_id = get_bundle_id(url);
+        }
+
+        if (cf_uninstall_bundle_id == NULL) {
+            printf("Error: Unable to get bundle id from user command or package %s\n Uninstall failed\n", app_path);
         } else {
             AMDeviceConnect(device);
             assert(AMDeviceIsPaired(device));
             assert(AMDeviceValidatePairing(device) == 0);
             assert(AMDeviceStartSession(device) == 0);
 
-            int code = AMDeviceSecureUninstallApplication(0, device, bundle_id, 0, NULL, 0);
+            int code = AMDeviceSecureUninstallApplication(0, device, cf_uninstall_bundle_id, 0, NULL, 0);
             if (code == 0) {
-                printf("[ OK ] Uninstalled package with bundle id %s\n", CFStringGetCStringPtr(bundle_id, CFStringGetSystemEncoding()));
+                printf("[ OK ] Uninstalled package with bundle id %s\n", CFStringGetCStringPtr(cf_uninstall_bundle_id, CFStringGetSystemEncoding()));
             } else {
-                printf("[ ERROR ] Could not uninstall package with bundle id %s\n", CFStringGetCStringPtr(bundle_id, CFStringGetSystemEncoding()));
+                printf("[ ERROR ] Could not uninstall package with bundle id %s\n", CFStringGetCStringPtr(cf_uninstall_bundle_id, CFStringGetSystemEncoding()));
             }
             assert(AMDeviceStopSession(device) == 0);
             assert(AMDeviceDisconnect(device) == 0);
@@ -1696,6 +1740,7 @@ void usage(const char* app) {
         "  -m, --noinstall              directly start debugging without app install (-d not required)\n"
         "  -p, --port <number>          port used for device, default: dynamic\n"
         "  -r, --uninstall              uninstall the app before install (do not use with -m; app cache and data are cleared) \n"
+        "  -9, --uninstall_only         uninstall the app ONLY. Use only with -1 <bundle_id> \n"
         "  -1, --bundle_id <bundle id>  specify bundle id for list and upload\n"
         "  -l, --list                   list files\n"
         "  -o, --upload <file>          upload file\n"
@@ -1729,6 +1774,7 @@ int main(int argc, char *argv[]) {
         { "noinstall", no_argument, NULL, 'm' },
         { "port", required_argument, NULL, 'p' },
         { "uninstall", no_argument, NULL, 'r' },
+        { "uninstall_only", no_argument, NULL, '9'},
         { "list", optional_argument, NULL, 'l' },
         { "bundle_id", required_argument, NULL, '1'},
         { "upload", required_argument, NULL, 'o'},
@@ -1741,7 +1787,7 @@ int main(int argc, char *argv[]) {
     };
     char ch;
 
-    while ((ch = getopt_long(argc, argv, "VmcdvunrILeD:R:i:b:a:t:g:x:p:1:2:o:l::w::", longopts, NULL)) != -1)
+    while ((ch = getopt_long(argc, argv, "VmcdvunrILeD:R:i:b:a:t:g:x:p:1:2:o:l::w::9::", longopts, NULL)) != -1)
     {
         switch (ch) {
         case 'm':
@@ -1792,6 +1838,10 @@ int main(int argc, char *argv[]) {
         case 'r':
             uninstall = 1;
             break;
+        case '9':
+            command_only = true;
+            command = "uninstall_only";
+            break;
         case '1':
             bundle_id = optarg;
             break;
@@ -1835,6 +1885,7 @@ int main(int argc, char *argv[]) {
 
     if (!app_path && !detect_only && !command_only) {
         usage(argv[0]);
+        printf ("ERROR: One of -[b|c|o|l|w|D|R|e|9] is required to proceed!\n");
         exit(exitcode_error);
     }
 

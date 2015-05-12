@@ -1741,7 +1741,7 @@ int main(int argc, char *argv[]) {
     };
     char ch;
 
-    while ((ch = getopt_long(argc, argv, "VmcdvunrILeR:i:b:a:t:g:x:p:1:2:o:l::w::", longopts, NULL)) != -1)
+    while ((ch = getopt_long(argc, argv, "VmcdvunrILeD:R:i:b:a:t:g:x:p:1:2:o:l::w::", longopts, NULL)) != -1)
     {
         switch (ch) {
         case 'm':

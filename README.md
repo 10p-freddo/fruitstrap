@@ -4,20 +4,31 @@ Install and debug iOS apps without using Xcode. Designed to work on un-jailbroke
 
 ## Requirements
 
-* Mac OS X. Tested on 10.10 Yosemite and iOS 8.1
-* You need to have a valid iOS development certificate installed.
-* Xcode 6.1 should be installed
+* Mac OS X. Tested on 10.10 Yosemite and iOS 8.3
+* You need to have a valid iOS Development certificate installed.
+* Xcode 6 or greater should be installed
 
 ## Installation
-ios-deploy installation is made simple using the node.js package manager.  If you use [Homebrew](http://brew.sh/), install node.js:
-```bash
+
+ios-deploy installation is made simple using the node.js package manager.  If you use [Homebrew](http://brew.sh/), install [node.js](https://nodejs.org):
+
+```
 brew install node
 ```
 
-Now install ios-deploy with the node.js package manager:
-```bash
-$ npm install -g ios-deploy
+Now install ios-deploy with the [node.js](https://nodejs.org) package manager:
+
 ```
+npm install -g ios-deploy
+```
+
+To install from source:
+
+```
+make install prefix=/usr/local
+```
+
+This will install ios-deploy in the `bin` folder of `/usr/local`, i.e. `/usr/local/bin`
 
 ## Usage
 
@@ -87,9 +98,10 @@ The commands below assume that you have an app called `my.app` with bundle id `b
 
 ## Demo
 
-* The included demo.app represents the minimum required to get code running on iOS.
-* `make install` will install demo.app to the device.
-* `make debug` will install demo.app and launch a GDB session.
+The included demo.app represents the minimum required to get code running on iOS.
+
+* `make demo.app` will generate the demo.app executable. If it doesn't compile, modify IOS_SDK_VERSION in the Makefile.
+* `make debug` will install demo.app and launch a LLDB session.
 
 ## Notes
 

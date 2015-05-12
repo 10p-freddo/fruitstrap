@@ -77,6 +77,9 @@ The commands below assume that you have an app called `my.app` with bundle id `b
 
     // Download the Documents directory of the app *only*
     ios-deploy --download=/Documents -bundle_id my.app.id --to ./my_download_location
+    
+    // List ids and names of connected devices
+    ios-deploy -c
 
 ## Demo
 
@@ -87,10 +90,3 @@ The commands below assume that you have an app called `my.app` with bundle id `b
 ## Notes
 
 * With some modifications, it may be possible to use this without Xcode installed; however, you would need a copy of the relevant DeveloperDiskImage.dmg (included with Xcode). lldb would also run slower as symbols would be downloaded from the device on-the-fly.
-
-
-## Listing Device Ids
-
-Device Ids are the UDIDs of the iOS devices. From the command line, you can list device ids [this way](http://javierhz.blogspot.com/2012/06/how-to-get-udid-of-iphone-using-shell.html):
-
-        system_profiler SPUSBDataType | sed -n -e '/iPod/,/Serial/p' | sed -n -e '/iPad/,/Serial/p' -e '/iPhone/,/Serial/p' | grep "Serial Number:" | awk -F ": " '{print $2}'

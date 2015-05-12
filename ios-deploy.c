@@ -1844,7 +1844,7 @@ int main(int argc, char *argv[]) {
     }
 
     if (detect_only && timeout == 0) {
-        timeout = 5;
+        timeout = 0;
     }
 
     if (app_path) {

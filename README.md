@@ -36,7 +36,7 @@ $ npm install -g ios-deploy
       -m, --noinstall              directly start debugging without app install (-d not required)
       -p, --port <number>          port used for device, default: 12345
       -r, --uninstall              uninstall the app before install (do not use with -m; app cache and data are cleared)
-      -1, --bundle_id <bundle id>  specify bundle id for list and upload
+      -1, --bundle_id <bundle id>  specify bundle id for list, upload, and uninstall_only
       -l, --list                   list files
       -o, --upload <file>          upload file
       -w, --download               download app tree
@@ -45,6 +45,7 @@ $ npm install -g ios-deploy
       -R, --rm <path>              remove file or directory on device (directories must be empty)
       -V, --version                print the executable version
       -e, --exists                 check if the app with given bundle_id is installed or not
+      -9, --uninstall_only         uninstall an app only, by bundle_id
 
 
 ## Examples
@@ -80,6 +81,9 @@ The commands below assume that you have an app called `my.app` with bundle id `b
     
     // List ids and names of connected devices
     ios-deploy -c
+    
+    // Uninstall an app
+    ios-deploy --uninstall_only --bundle_id my.bundle.id
 
 ## Demo
 

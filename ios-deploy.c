@@ -183,6 +183,31 @@ AMDeviceRef best_device_match = NULL;
 const int exitcode_error = 253;
 const int exitcode_app_crash = 254;
 
+// Print error message and exit
+void on_error(const char* fmt, ...) {
+    char buf[256];
+    va_list args;
+    va_start(args, fmt);
+    fprintf(stderr, "[ !! ] ");
+    vfprintf(stderr, fmt, args);
+    fprintf(stderr, "\n");
+    va_end(args);
+
+    exit(exitcode_error);
+}
+
+// Print error message getting last errno and exit
+void on_sys_error(const char* fmt, ...) {
+    const char* errstr = strerror(errno);
+
+    char buf[256];
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(buf, 256, fmt, args);
+    on_error("%s: %s", buf, errstr);
+    va_end(args);
+}
+
 Boolean path_exists(CFTypeRef path) {
     if (CFGetTypeID(path) == CFStringGetTypeID()) {
         CFURLRef url = CFURLCreateWithFileSystemPath(NULL, path, kCFURLPOSIXPathStyle, true);
@@ -222,10 +247,7 @@ CFStringRef find_path(CFStringRef rootPath, CFStringRef namePattern, CFStringRef
     CFRelease(cf_command);
 
     if (!(fpipe = (FILE *)popen(command, "r")))
-    {
-        perror("Error encountered while opening pipe");
-        exit(exitcode_error);
-    }
+        on_sys_error("Error encountered while opening pipe");
 
     char buffer[256] = { '\0' };
 
@@ -247,10 +269,7 @@ CFStringRef copy_xcode_dev_path() {
         char *command = "xcode-select -print-path";
 
         if (!(fpipe = (FILE *)popen(command, "r")))
-        {
-            perror("Error encountered while opening pipe");
-            exit(exitcode_error);
-        }
+            on_sys_error("Error encountered while opening pipe");
 
         char buffer[256] = { '\0' };
 
@@ -503,10 +522,7 @@ CFStringRef copy_device_support_path(AMDeviceRef device) {
     CFRelease(build);
 
     if (path == NULL)
-    {
-        printf("[ !! ] Unable to locate DeviceSupport directory.\n[ !! ] This probably means you don't have Xcode installed, you will need to launch the app manually and logging output will not be shown!\n");
-        exit(exitcode_error);
-    }
+        on_error("Unable to locate DeviceSupport directory. This probably means you don't have Xcode installed, you will need to launch the app manually and logging output will not be shown!");
 
     return path;
 }
@@ -544,10 +560,7 @@ CFStringRef copy_developer_disk_image_path(AMDeviceRef device) {
     CFRelease(version_parts);
     CFRelease(build);
     if (path == NULL)
-    {
-        printf("[ !! ] Unable to locate DeveloperDiskImage.dmg.\n[ !! ] This probably means you don't have Xcode installed, you will need to launch the app manually and logging output will not be shown!\n");
-        exit(exitcode_error);
-    }
+        on_error("Unable to locate DeveloperDiskImage.dmg. This probably means you don't have Xcode installed, you will need to launch the app manually and logging output will not be shown!");
 
     return path;
 }
@@ -593,8 +606,7 @@ void mount_developer_image(AMDeviceRef device) {
     } else if (result == 0xe8000076 /* already mounted */) {
         printf("[ 95%%] Developer disk image already mounted\n");
     } else {
-        printf("[ !! ] Unable to mount developer disk image. (%x)\n", result);
-        exit(exitcode_error);
+        on_error("Unable to mount developer disk image. (%x)", result);
     }
 
     CFRelease(image_path);
@@ -1047,8 +1059,7 @@ void launch_debugger(AMDeviceRef device, CFURLRef url) {
     } else if (pid > 0) {
         child = pid;
     } else {
-        perror("fork failed");
-        exit(exitcode_error);
+        on_sys_error("Fork failed");
     }
 }
 
@@ -1086,8 +1097,7 @@ void launch_debugger_and_exit(AMDeviceRef device, CFURLRef url) {
         if (verbose)
             printf("Waiting for child [Child: %d][Parent: %d]\n", child, parent);
     } else {
-        perror("fork failed");
-        exit(exitcode_error);
+        on_sys_error("Fork failed");
     }
 }
 
@@ -1647,8 +1657,7 @@ void handle_device(AMDeviceRef device) {
             char* error = "Unknown error.";
             if (result == 0xe8008015)
                 error = "Your application failed code-signing checks. Check your certificates, provisioning profiles, and bundle ids.";
-            printf("AMDeviceInstallApplication failed: 0x%X: %s\n", result, error);
-            exit(exitcode_error);
+            on_error("AMDeviceInstallApplication failed: 0x%X: %s", result, error);
         }
 
         // close(installFd);
@@ -1694,10 +1703,8 @@ void timeout_callback(CFRunLoopTimerRef timer, void *info) {
             best_device_match = NULL;
         }
 
-        if(!found_device) {
-            printf("[....] Timed out waiting for device.\n");
-            exit(exitcode_error);
-        }
+        if(!found_device)
+            on_error("Timed out waiting for device.");
     }
     else
     {
@@ -1885,8 +1892,7 @@ int main(int argc, char *argv[]) {
 
     if (!app_path && !detect_only && !command_only) {
         usage(argv[0]);
-        printf ("ERROR: One of -[b|c|o|l|w|D|R|e|9] is required to proceed!\n");
-        exit(exitcode_error);
+        on_error("One of -[b|c|o|l|w|D|R|e|9] is required to proceed!");
     }
 
     if (unbuffered) {
@@ -1899,7 +1905,9 @@ int main(int argc, char *argv[]) {
     }
 
     if (app_path) {
-        assert(access(app_path, F_OK) == 0);
+        if (access(app_path, F_OK) != 0) {
+            on_sys_error("Can't access app path '%s'", app_path);
+        }
     }
 
     AMDSetLogLevel(5); // otherwise syslog gets flooded with crap

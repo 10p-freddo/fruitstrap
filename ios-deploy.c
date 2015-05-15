@@ -1272,13 +1272,12 @@ void list_files(AMDeviceRef device)
     }
 }
 
-int app_exists(AMDeviceRef device)
+void app_exists(AMDeviceRef device)
 {
     if (bundle_id == NULL) {
         printf("Bundle id is not specified\n");
-        return false;
+        return;
     }
-
     AMDeviceConnect(device);
     assert(AMDeviceIsPaired(device));
     assert(AMDeviceValidatePairing(device) == 0);
@@ -1289,21 +1288,17 @@ int app_exists(AMDeviceRef device)
     NSArray *a = [NSArray arrayWithObjects:@"CFBundleIdentifier", nil];
     NSDictionary *optionsDict = [NSDictionary dictionaryWithObject:a forKey:@"ReturnAttributes"];
     CFDictionaryRef options = (CFDictionaryRef)optionsDict;
-
     CFDictionaryRef result = nil;
     afc_error_t resultStatus = AMDeviceLookupApplications(device, options, &result);
     assert(resultStatus == 0);
 
     CFDictionaryRef app_dict = CFDictionaryGetValue(result, cf_bundle_id);
-
-    int appExists = (app_dict == NULL) ? -1 : 0;
-
+    bool appExists = (app_dict == NULL) ? false : true;
+    printf("%s", appExists ? "true\n" : "false\n");
     CFRelease(cf_bundle_id);
 
     assert(AMDeviceStopSession(device) == 0);
     assert(AMDeviceDisconnect(device) == 0);
-
-    return appExists;
 }
 
 void copy_file_callback(afc_connection* afc_conn_p, const char *name,int file)
@@ -1554,7 +1549,7 @@ void handle_device(AMDeviceRef device) {
         } else if (strcmp("rm", command) == 0) {
             remove_path(device);
         } else if (strcmp("exists", command) == 0) {
-            exit(app_exists(device));
+            app_exists(device);
         } else if (strcmp("uninstall_only", command) == 0) {
             uninstall_app(device);
         }

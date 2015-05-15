@@ -1272,11 +1272,11 @@ void list_files(AMDeviceRef device)
     }
 }
 
-void app_exists(AMDeviceRef device)
+int app_exists(AMDeviceRef device)
 {
     if (bundle_id == NULL) {
         printf("Bundle id is not specified\n");
-        return;
+        return 1;
     }
     AMDeviceConnect(device);
     assert(AMDeviceIsPaired(device));
@@ -1299,6 +1299,9 @@ void app_exists(AMDeviceRef device)
 
     assert(AMDeviceStopSession(device) == 0);
     assert(AMDeviceDisconnect(device) == 0);
+    if (appExists)
+    	return 0;
+    return -1;
 }
 
 void copy_file_callback(afc_connection* afc_conn_p, const char *name,int file)
@@ -1549,7 +1552,7 @@ void handle_device(AMDeviceRef device) {
         } else if (strcmp("rm", command) == 0) {
             remove_path(device);
         } else if (strcmp("exists", command) == 0) {
-            app_exists(device);
+            exit(app_exists(device));
         } else if (strcmp("uninstall_only", command) == 0) {
             uninstall_app(device);
         }

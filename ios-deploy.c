@@ -14,7 +14,9 @@
 #include <pwd.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+
 #include "MobileDevice.h"
+#include "errors.h"
 
 #define APP_VERSION    "1.6.1"
 #define PREP_CMDS_PATH "/tmp/fruitstrap-lldb-prep-cmds-"
@@ -183,6 +185,42 @@ AMDeviceRef best_device_match = NULL;
 const int exitcode_error = 253;
 const int exitcode_app_crash = 254;
 
+// Checks for MobileDevice.framework errors, tries to print them and exits.
+#define check_error(call)                                                       \
+    do {                                                                        \
+        unsigned int err = (unsigned int)call;                                  \
+        if (err != 0)                                                           \
+        {                                                                       \
+            const char* msg = get_error_message(err);                           \
+            on_error("Error 0x%x: %s " #call, err, msg ? msg : "unknown.");     \
+        }                                                                       \
+    } while (false);
+
+// Print error message and exit
+void on_error(const char* fmt, ...) {
+    char buf[256];
+    va_list args;
+    va_start(args, fmt);
+    fprintf(stderr, "[ !! ] ");
+    vfprintf(stderr, fmt, args);
+    fprintf(stderr, "\n");
+    va_end(args);
+
+    exit(exitcode_error);
+}
+
+// Print error message getting last errno and exit
+void on_sys_error(const char* fmt, ...) {
+    const char* errstr = strerror(errno);
+
+    char buf[256];
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(buf, 256, fmt, args);
+    on_error("%s: %s", buf, errstr);
+    va_end(args);
+}
+
 Boolean path_exists(CFTypeRef path) {
     if (CFGetTypeID(path) == CFStringGetTypeID()) {
         CFURLRef url = CFURLCreateWithFileSystemPath(NULL, path, kCFURLPOSIXPathStyle, true);
@@ -222,10 +260,7 @@ CFStringRef find_path(CFStringRef rootPath, CFStringRef namePattern, CFStringRef
     CFRelease(cf_command);
 
     if (!(fpipe = (FILE *)popen(command, "r")))
-    {
-        perror("Error encountered while opening pipe");
-        exit(exitcode_error);
-    }
+        on_sys_error("Error encountered while opening pipe");
 
     char buffer[256] = { '\0' };
 
@@ -247,10 +282,7 @@ CFStringRef copy_xcode_dev_path() {
         char *command = "xcode-select -print-path";
 
         if (!(fpipe = (FILE *)popen(command, "r")))
-        {
-            perror("Error encountered while opening pipe");
-            exit(exitcode_error);
-        }
+            on_sys_error("Error encountered while opening pipe");
 
         char buffer[256] = { '\0' };
 
@@ -503,10 +535,7 @@ CFStringRef copy_device_support_path(AMDeviceRef device) {
     CFRelease(build);
 
     if (path == NULL)
-    {
-        printf("[ !! ] Unable to locate DeviceSupport directory.\n[ !! ] This probably means you don't have Xcode installed, you will need to launch the app manually and logging output will not be shown!\n");
-        exit(exitcode_error);
-    }
+        on_error("Unable to locate DeviceSupport directory. This probably means you don't have Xcode installed, you will need to launch the app manually and logging output will not be shown!");
 
     return path;
 }
@@ -544,10 +573,7 @@ CFStringRef copy_developer_disk_image_path(AMDeviceRef device) {
     CFRelease(version_parts);
     CFRelease(build);
     if (path == NULL)
-    {
-        printf("[ !! ] Unable to locate DeveloperDiskImage.dmg.\n[ !! ] This probably means you don't have Xcode installed, you will need to launch the app manually and logging output will not be shown!\n");
-        exit(exitcode_error);
-    }
+        on_error("Unable to locate DeveloperDiskImage.dmg. This probably means you don't have Xcode installed, you will need to launch the app manually and logging output will not be shown!");
 
     return path;
 }
@@ -593,8 +619,7 @@ void mount_developer_image(AMDeviceRef device) {
     } else if (result == 0xe8000076 /* already mounted */) {
         printf("[ 95%%] Developer disk image already mounted\n");
     } else {
-        printf("[ !! ] Unable to mount developer disk image. (%x)\n", result);
-        exit(exitcode_error);
+        on_error("Unable to mount developer disk image. (%x)", result);
     }
 
     CFRelease(image_path);
@@ -662,8 +687,7 @@ CFURLRef copy_device_app_url(AMDeviceRef device, CFStringRef identifier) {
     NSDictionary *optionsDict = [NSDictionary dictionaryWithObject:a forKey:@"ReturnAttributes"];
 	CFDictionaryRef options = (CFDictionaryRef)optionsDict;
 
-    afc_error_t resultStatus = AMDeviceLookupApplications(device, options, &result);
-    assert(resultStatus == 0);
+    check_error(AMDeviceLookupApplications(device, options, &result));
 
     CFDictionaryRef app_dict = CFDictionaryGetValue(result, identifier);
     assert(app_dict != NULL);
@@ -865,8 +889,7 @@ void fdvendor_callback(CFSocketRef s, CFSocketCallBackType callbackType, CFDataR
 
 void start_remote_debug_server(AMDeviceRef device) {
 
-    int res = AMDeviceStartService(device, CFSTR("com.apple.debugserver"), &gdbfd, NULL);
-    assert(res == 0);
+    check_error(AMDeviceStartService(device, CFSTR("com.apple.debugserver"), &gdbfd, NULL));
     assert(gdbfd > 0);
 
     /*
@@ -895,7 +918,7 @@ void start_remote_debug_server(AMDeviceRef device) {
     CFSocketSetAddress(fdvendor, address_data);
     CFRelease(address_data);
     socklen_t addrlen = sizeof(addr4);
-    res = getsockname(CFSocketGetNative(fdvendor),(struct sockaddr *)&addr4,&addrlen);
+    int res = getsockname(CFSocketGetNative(fdvendor),(struct sockaddr *)&addr4,&addrlen);
     assert(res == 0);
     port = ntohs(addr4.sin_port);
 
@@ -977,8 +1000,8 @@ void setup_lldb(AMDeviceRef device, CFURLRef url) {
 
     AMDeviceConnect(device);
     assert(AMDeviceIsPaired(device));
-    assert(AMDeviceValidatePairing(device) == 0);
-    assert(AMDeviceStartSession(device) == 0);
+    check_error(AMDeviceValidatePairing(device));
+    check_error(AMDeviceStartSession(device));
 
     printf("------ Debug phase ------\n");
 
@@ -1047,8 +1070,7 @@ void launch_debugger(AMDeviceRef device, CFURLRef url) {
     } else if (pid > 0) {
         child = pid;
     } else {
-        perror("fork failed");
-        exit(exitcode_error);
+        on_sys_error("Fork failed");
     }
 }
 
@@ -1086,8 +1108,7 @@ void launch_debugger_and_exit(AMDeviceRef device, CFURLRef url) {
         if (verbose)
             printf("Waiting for child [Child: %d][Parent: %d]\n", child, parent);
     } else {
-        perror("fork failed");
-        exit(exitcode_error);
+        on_sys_error("Fork failed");
     }
 }
 
@@ -1200,8 +1221,8 @@ void read_dir(service_conn_t afcFd, afc_connection* afc_conn_p, const char* dir,
 service_conn_t start_house_arrest_service(AMDeviceRef device) {
     AMDeviceConnect(device);
     assert(AMDeviceIsPaired(device));
-    assert(AMDeviceValidatePairing(device) == 0);
-    assert(AMDeviceStartSession(device) == 0);
+    check_error(AMDeviceValidatePairing(device));
+    check_error(AMDeviceStartSession(device));
 
     service_conn_t houseFd;
 
@@ -1217,8 +1238,8 @@ service_conn_t start_house_arrest_service(AMDeviceRef device) {
         exit(1);
     }
 
-    assert(AMDeviceStopSession(device) == 0);
-    assert(AMDeviceDisconnect(device) == 0);
+    check_error(AMDeviceStopSession(device));
+    check_error(AMDeviceDisconnect(device));
     CFRelease(cf_bundle_id);
 
     return houseFd;
@@ -1280,8 +1301,8 @@ int app_exists(AMDeviceRef device)
     }
     AMDeviceConnect(device);
     assert(AMDeviceIsPaired(device));
-    assert(AMDeviceValidatePairing(device) == 0);
-    assert(AMDeviceStartSession(device) == 0);
+    check_error(AMDeviceValidatePairing(device));
+    check_error(AMDeviceStartSession(device));
 
     CFStringRef cf_bundle_id = CFStringCreateWithCString(NULL, bundle_id, kCFStringEncodingASCII);
 
@@ -1289,16 +1310,15 @@ int app_exists(AMDeviceRef device)
     NSDictionary *optionsDict = [NSDictionary dictionaryWithObject:a forKey:@"ReturnAttributes"];
     CFDictionaryRef options = (CFDictionaryRef)optionsDict;
     CFDictionaryRef result = nil;
-    afc_error_t resultStatus = AMDeviceLookupApplications(device, options, &result);
-    assert(resultStatus == 0);
+    check_error(AMDeviceLookupApplications(device, options, &result));
 
     CFDictionaryRef app_dict = CFDictionaryGetValue(result, cf_bundle_id);
     bool appExists = (app_dict == NULL) ? false : true;
     printf("%s", appExists ? "true\n" : "false\n");
     CFRelease(cf_bundle_id);
 
-    assert(AMDeviceStopSession(device) == 0);
-    assert(AMDeviceDisconnect(device) == 0);
+    check_error(AMDeviceStopSession(device));
+    check_error(AMDeviceDisconnect(device));
     if (appExists)
     	return 0;
     return -1;
@@ -1431,7 +1451,7 @@ void upload_file(AMDeviceRef device) {
             c++;
         }
         *lastSlash = '\0';
-        assert(AFCDirectoryCreate(afc_conn_p, dirpath) == 0);
+        check_error(AFCDirectoryCreate(afc_conn_p, dirpath));
     }
 
 
@@ -1499,8 +1519,8 @@ void uninstall_app(AMDeviceRef device) {
     } else {
         AMDeviceConnect(device);
         assert(AMDeviceIsPaired(device));
-        assert(AMDeviceValidatePairing(device) == 0);
-        assert(AMDeviceStartSession(device) == 0);
+        check_error(AMDeviceValidatePairing(device));
+        check_error(AMDeviceStartSession(device));
 
         int code = AMDeviceSecureUninstallApplication(0, device, cf_uninstall_bundle_id, 0, NULL, 0);
         if (code == 0) {
@@ -1508,8 +1528,8 @@ void uninstall_app(AMDeviceRef device) {
         } else {
             printf("[ ERROR ] Could not uninstall package with bundle id %s\n", CFStringGetCStringPtr(cf_uninstall_bundle_id, CFStringGetSystemEncoding()));
         }
-        assert(AMDeviceStopSession(device) == 0);
-        assert(AMDeviceDisconnect(device) == 0);
+        check_error(AMDeviceStopSession(device));
+        check_error(AMDeviceDisconnect(device));
     }
 }
 
@@ -1585,8 +1605,8 @@ void handle_device(AMDeviceRef device) {
         } else {
             AMDeviceConnect(device);
             assert(AMDeviceIsPaired(device));
-            assert(AMDeviceValidatePairing(device) == 0);
-            assert(AMDeviceStartSession(device) == 0);
+            check_error(AMDeviceValidatePairing(device));
+            check_error(AMDeviceStartSession(device));
 
             int code = AMDeviceSecureUninstallApplication(0, device, cf_uninstall_bundle_id, 0, NULL, 0);
             if (code == 0) {
@@ -1594,8 +1614,8 @@ void handle_device(AMDeviceRef device) {
             } else {
                 printf("[ ERROR ] Could not uninstall package with bundle id %s\n", CFStringGetCStringPtr(cf_uninstall_bundle_id, CFStringGetSystemEncoding()));
             }
-            assert(AMDeviceStopSession(device) == 0);
-            assert(AMDeviceDisconnect(device) == 0);
+            check_error(AMDeviceStopSession(device));
+            check_error(AMDeviceDisconnect(device));
         }
     }
 
@@ -1605,22 +1625,22 @@ void handle_device(AMDeviceRef device) {
 
         AMDeviceConnect(device);
         assert(AMDeviceIsPaired(device));
-        assert(AMDeviceValidatePairing(device) == 0);
-        assert(AMDeviceStartSession(device) == 0);
+        check_error(AMDeviceValidatePairing(device));
+        check_error(AMDeviceStartSession(device));
 
 
         // NOTE: the secure version doesn't seem to require us to start the AFC service
         service_conn_t afcFd;
-        assert(AMDeviceSecureStartService(device, CFSTR("com.apple.afc"), NULL, &afcFd) == 0);
-        assert(AMDeviceStopSession(device) == 0);
-        assert(AMDeviceDisconnect(device) == 0);
+        check_error(AMDeviceSecureStartService(device, CFSTR("com.apple.afc"), NULL, &afcFd));
+        check_error(AMDeviceStopSession(device));
+        check_error(AMDeviceDisconnect(device));
 
         CFStringRef keys[] = { CFSTR("PackageType") };
         CFStringRef values[] = { CFSTR("Developer") };
         CFDictionaryRef options = CFDictionaryCreate(NULL, (const void **)&keys, (const void **)&values, 1, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
 
         //assert(AMDeviceTransferApplication(afcFd, path, NULL, transfer_callback, NULL) == 0);
-        assert(AMDeviceSecureTransferPath(0, device, url, options, transfer_callback, 0)==0);
+        check_error(AMDeviceSecureTransferPath(0, device, url, options, transfer_callback, 0));
 
         close(afcFd);
 
@@ -1628,8 +1648,8 @@ void handle_device(AMDeviceRef device) {
 
         AMDeviceConnect(device);
         assert(AMDeviceIsPaired(device));
-        assert(AMDeviceValidatePairing(device) == 0);
-        assert(AMDeviceStartSession(device) == 0);
+        check_error(AMDeviceValidatePairing(device));
+        check_error(AMDeviceStartSession(device));
 
         // // NOTE: the secure version doesn't seem to require us to start the installation_proxy service
         // // Although I can't find it right now, I in some code that the first param of AMDeviceSecureInstallApplication was a "dontStartInstallProxy"
@@ -1639,20 +1659,12 @@ void handle_device(AMDeviceRef device) {
         //assert(AMDeviceSecureStartService(device, CFSTR("com.apple.mobile.installation_proxy"), NULL, &installFd) == 0);
 
         //mach_error_t result = AMDeviceInstallApplication(installFd, path, options, install_callback, NULL);
-        mach_error_t result = AMDeviceSecureInstallApplication(0, device, url, options, install_callback, 0);
-        if (result != 0)
-        {
-            char* error = "Unknown error.";
-            if (result == 0xe8008015)
-                error = "Your application failed code-signing checks. Check your certificates, provisioning profiles, and bundle ids.";
-            printf("AMDeviceInstallApplication failed: 0x%X: %s\n", result, error);
-            exit(exitcode_error);
-        }
+        check_error(AMDeviceSecureInstallApplication(0, device, url, options, install_callback, 0));
 
         // close(installFd);
 
-        assert(AMDeviceStopSession(device) == 0);
-        assert(AMDeviceDisconnect(device) == 0);
+        check_error(AMDeviceStopSession(device));
+        check_error(AMDeviceDisconnect(device));
 
         CFRelease(path);
         CFRelease(options);
@@ -1692,10 +1704,8 @@ void timeout_callback(CFRunLoopTimerRef timer, void *info) {
             best_device_match = NULL;
         }
 
-        if(!found_device) {
-            printf("[....] Timed out waiting for device.\n");
-            exit(exitcode_error);
-        }
+        if(!found_device)
+            on_error("Timed out waiting for device.");
     }
     else
     {
@@ -1883,8 +1893,7 @@ int main(int argc, char *argv[]) {
 
     if (!app_path && !detect_only && !command_only) {
         usage(argv[0]);
-        printf ("ERROR: One of -[b|c|o|l|w|D|R|e|9] is required to proceed!\n");
-        exit(exitcode_error);
+        on_error("One of -[b|c|o|l|w|D|R|e|9] is required to proceed!");
     }
 
     if (unbuffered) {
@@ -1897,7 +1906,9 @@ int main(int argc, char *argv[]) {
     }
 
     if (app_path) {
-        assert(access(app_path, F_OK) == 0);
+        if (access(app_path, F_OK) != 0) {
+            on_sys_error("Can't access app path '%s'", app_path);
+        }
     }
 
     AMDSetLogLevel(5); // otherwise syslog gets flooded with crap

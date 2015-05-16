@@ -1312,8 +1312,7 @@ int app_exists(AMDeviceRef device)
     CFDictionaryRef result = nil;
     check_error(AMDeviceLookupApplications(device, options, &result));
 
-    CFDictionaryRef app_dict = CFDictionaryGetValue(result, cf_bundle_id);
-    bool appExists = (app_dict == NULL) ? false : true;
+    bool appExists = CFDictionaryContainsKey(result, cf_bundle_id);
     printf("%s", appExists ? "true\n" : "false\n");
     CFRelease(cf_bundle_id);
 

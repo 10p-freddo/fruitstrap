@@ -446,16 +446,11 @@ CFStringRef get_device_full_name(const AMDeviceRef device) {
     if (verbose)
     {
       char *devName = MYCFStringCopyUTF8String(device_name);
-      printf("Device Name:[%s]\n",devName);
-      CFShow(device_name);
-      printf("\n");
+      CFShow([NSString stringWithFormat:@"Device Name: %s\n", devName]);
       free(devName);
 
       char *mdlName = MYCFStringCopyUTF8String(model_name);
-      printf("Model Name:[%s]\n",mdlName);
-        printf("MM: [%s]\n",CFStringGetCStringPtr(model_name, kCFStringEncodingUTF8));
-      CFShow(model_name);
-      printf("\n");
+      CFShow([NSString stringWithFormat:@"Model Name: %s\n", mdlName]);
       free(mdlName);
     }
 
@@ -1540,9 +1535,9 @@ void handle_device(AMDeviceRef device) {
     CFStringRef found_device_id = AMDeviceCopyDeviceIdentifier(device),
                 device_full_name = get_device_full_name(device),
                 device_interface_name = get_device_interface_name(device);
-
+                
     if (detect_only) {
-        printf("[....] Found %s connected through %s.\n", CFStringGetCStringPtr(device_full_name, CFStringGetSystemEncoding()), CFStringGetCStringPtr(device_interface_name, CFStringGetSystemEncoding()));
+        CFShow([NSString stringWithFormat:@"[....] Found %@ connected through %@.\n", device_full_name, device_interface_name]);
         found_device = true;
         return;
     }
@@ -1550,7 +1545,7 @@ void handle_device(AMDeviceRef device) {
         if(strcmp(device_id, CFStringGetCStringPtr(found_device_id, CFStringGetSystemEncoding())) == 0) {
             found_device = true;
         } else {
-            printf("Skipping %s.\n", CFStringGetCStringPtr(device_full_name, CFStringGetSystemEncoding()));
+            CFShow([NSString stringWithFormat:@"Skipping %@.\n", device_full_name]);
             return;
         }
     } else {
@@ -1558,7 +1553,7 @@ void handle_device(AMDeviceRef device) {
         found_device = true;
     }
 
-    printf("[....] Using %s (%s).\n", CFStringGetCStringPtr(device_full_name, CFStringGetSystemEncoding()), CFStringGetCStringPtr(found_device_id, CFStringGetSystemEncoding()));
+    CFShow([NSString stringWithFormat:@"[....] Using %@ (%@).\n", device_full_name, found_device_id]);
 
     if (command_only) {
         if (strcmp("list", command) == 0) {
@@ -1621,7 +1616,7 @@ void handle_device(AMDeviceRef device) {
 
     if(install) {
         printf("------ Install phase ------\n");
-        printf("[  0%%] Found %s connected through %s, beginning install\n", CFStringGetCStringPtr(device_full_name, CFStringGetSystemEncoding()), CFStringGetCStringPtr(device_interface_name, CFStringGetSystemEncoding()));
+        CFShow([NSString stringWithFormat:@"[  0%%] Found %@ connected through %@, beginning install\n", device_full_name, device_interface_name]);
 
         AMDeviceConnect(device);
         assert(AMDeviceIsPaired(device));

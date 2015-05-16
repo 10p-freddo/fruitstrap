@@ -1323,6 +1323,33 @@ int app_exists(AMDeviceRef device)
     return -1;
 }
 
+void list_bundle_id(AMDeviceRef device)
+{
+    AMDeviceConnect(device);
+    assert(AMDeviceIsPaired(device));
+    check_error(AMDeviceValidatePairing(device));
+    check_error(AMDeviceStartSession(device));
+    
+    NSArray *a = [NSArray arrayWithObjects:@"CFBundleIdentifier", nil];
+    NSDictionary *optionsDict = [NSDictionary dictionaryWithObject:a forKey:@"ReturnAttributes"];
+    CFDictionaryRef options = (CFDictionaryRef)optionsDict;
+    CFDictionaryRef result = nil;
+    check_error(AMDeviceLookupApplications(device, options, &result));
+    
+    CFIndex count;
+    count = CFDictionaryGetCount(result);
+    const void *keys[count];
+    CFDictionaryGetKeysAndValues(result, keys, NULL);
+    for(int i = 0; i < count; ++i) {
+        CFStringRef test = (CFStringRef)keys[i];
+        const char * key =  CFStringGetCStringPtr((CFStringRef)keys[i], kCFStringEncodingASCII);
+        printf("%s\n", key);
+    }
+    
+    check_error(AMDeviceStopSession(device));
+    check_error(AMDeviceDisconnect(device));
+}
+
 void copy_file_callback(afc_connection* afc_conn_p, const char *name,int file)
 {
     const char *local_name=name;
@@ -1574,6 +1601,8 @@ void handle_device(AMDeviceRef device) {
             exit(app_exists(device));
         } else if (strcmp("uninstall_only", command) == 0) {
             uninstall_app(device);
+        } else if (strcmp("list_bundle_id", command) == 0) {
+            list_bundle_id(device);
         }
         exit(0);
     }
@@ -1756,7 +1785,8 @@ void usage(const char* app) {
         "  -D, --mkdir <dir>            make directory on device\n"
         "  -R, --rm <path>              remove file or directory on device (directories must be empty)\n"
         "  -V, --version                print the executable version \n"
-        "  -e, --exists                 check if the app with given bundle_id is installed or not \n",
+        "  -e, --exists                 check if the app with given bundle_id is installed or not \n"
+        "  -B, --list_bundle_id         list bundle_id \n",
         app);
 }
 
@@ -1790,11 +1820,12 @@ int main(int argc, char *argv[]) {
         { "mkdir", required_argument, NULL, 'D'},
         { "rm", required_argument, NULL, 'R'},
         { "exists", no_argument, NULL, 'e'},
+        { "list_bundle_id", no_argument, NULL, 'B'},
         { NULL, 0, NULL, 0 },
     };
     char ch;
 
-    while ((ch = getopt_long(argc, argv, "VmcdvunrILeD:R:i:b:a:t:g:x:p:1:2:o:l::w::9::", longopts, NULL)) != -1)
+    while ((ch = getopt_long(argc, argv, "VmcdvunrILeD:R:i:b:a:t:g:x:p:1:2:o:l::w::9::B::", longopts, NULL)) != -1)
     {
         switch (ch) {
         case 'm':
@@ -1883,6 +1914,10 @@ int main(int argc, char *argv[]) {
         case 'e':
             command_only = true;
             command = "exists";
+            break;
+        case 'B':
+            command_only = true;
+            command = "list_bundle_id";
             break;
         default:
             usage(argv[0]);

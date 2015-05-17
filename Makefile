@@ -1,10 +1,10 @@
-IOS_SDK_VERSION = 7.1
+IOS_SDK_VERSION = 8.3
 
 IOS_CC = gcc -ObjC
 DEVICE_SUPPORT = $(shell xcode-select --print-path)/Platforms/iPhoneOS.platform/DeviceSupport
 IOS_SDK = $(shell xcode-select --print-path)/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS$(IOS_SDK_VERSION).sdk
 
-all: clean ios-deploy
+all: clean ios-deploy demo.app
 
 demo.app: demo Info.plist
 	mkdir -p demo.app
@@ -32,4 +32,4 @@ debug: all
 	./ios-deploy --debug --bundle demo.app
 
 clean:
-	rm -rf *.app demo ios-deploy
+	@rm -rf *.app demo ios-deploy

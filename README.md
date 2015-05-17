@@ -4,20 +4,32 @@ Install and debug iOS apps without using Xcode. Designed to work on un-jailbroke
 
 ## Requirements
 
-* Mac OS X. Tested on 10.10 Yosemite and iOS 8.1
-* You need to have a valid iOS development certificate installed.
-* Xcode 6.1 should be installed
+* Mac OS X. Tested on 10.10 Yosemite and iOS 8.3
+* You need to have a valid iOS Development certificate installed.
+* Xcode 6 or greater should be installed
 
 ## Installation
-ios-deploy installation is made simple using the node.js package manager.  If you use [Homebrew](http://brew.sh/), install node.js: 
-```bash
+=======
+
+ios-deploy installation is made simple using the node.js package manager.  If you use [Homebrew](http://brew.sh/), install [node.js](https://nodejs.org):
+
+```
 brew install node
 ```
 
-Now install ios-deploy with the node.js package manager:
-```bash
-$ npm install -g ios-deploy
+Now install ios-deploy with the [node.js](https://nodejs.org) package manager:
+
 ```
+npm install -g ios-deploy
+```
+
+To install from source:
+
+```
+make install prefix=/usr/local
+```
+
+This will install ios-deploy in the `bin` folder of `/usr/local`, i.e. `/usr/local/bin`
 
 ## Usage
 
@@ -36,7 +48,8 @@ $ npm install -g ios-deploy
       -m, --noinstall              directly start debugging without app install (-d not required)
       -p, --port <number>          port used for device, default: 12345
       -r, --uninstall              uninstall the app before install (do not use with -m; app cache and data are cleared)
-      -1, --bundle_id <bundle id>  specify bundle id for list and upload
+      -9, --uninstall_only         uninstall the app ONLY. Use only with -1 <bundle_id> 
+      -1, --bundle_id <bundle id>  specify bundle id for list, upload, and uninstall_only
       -l, --list                   list files
       -o, --upload <file>          upload file
       -w, --download               download app tree
@@ -45,7 +58,7 @@ $ npm install -g ios-deploy
       -R, --rm <path>              remove file or directory on device (directories must be empty)
       -V, --version                print the executable version
       -e, --exists                 check if the app with given bundle_id is installed or not
-
+      -B, --list_bundle_id         list bundle_id
 
 ## Examples
 
@@ -77,20 +90,23 @@ The commands below assume that you have an app called `my.app` with bundle id `b
 
     // Download the Documents directory of the app *only*
     ios-deploy --download=/Documents -bundle_id my.app.id --to ./my_download_location
+    
+    // List ids and names of connected devices
+    ios-deploy -c
+    
+    // Uninstall an app
+    ios-deploy --uninstall_only --bundle_id my.bundle.id
+    
+    // list all bundle ids of all apps on your device
+    ios-deploy --list_bundle_id
 
 ## Demo
 
-* The included demo.app represents the minimum required to get code running on iOS.
-* `make install` will install demo.app to the device.
-* `make debug` will install demo.app and launch a GDB session.
+The included demo.app represents the minimum required to get code running on iOS.
+
+* `make demo.app` will generate the demo.app executable. If it doesn't compile, modify IOS_SDK_VERSION in the Makefile.
+* `make debug` will install demo.app and launch a LLDB session.
 
 ## Notes
 
 * With some modifications, it may be possible to use this without Xcode installed; however, you would need a copy of the relevant DeveloperDiskImage.dmg (included with Xcode). lldb would also run slower as symbols would be downloaded from the device on-the-fly.
-
-
-## Listing Device Ids
-
-Device Ids are the UDIDs of the iOS devices. From the command line, you can list device ids [this way](http://javierhz.blogspot.com/2012/06/how-to-get-udid-of-iphone-using-shell.html):
-
-        system_profiler SPUSBDataType | sed -n -e '/iPod/,/Serial/p' | sed -n -e '/iPad/,/Serial/p' -e '/iPhone/,/Serial/p' | grep "Serial Number:" | awk -F ": " '{print $2}'

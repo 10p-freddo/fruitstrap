@@ -8,6 +8,15 @@ Install and debug iOS apps without using Xcode. Designed to work on un-jailbroke
 * You need to have a valid iOS Development certificate installed.
 * Xcode 6 or greater should be installed
 
+## Roadmap
+
+See our [milestones](https://github.com/phonegap/ios-deploy/milestones).
+
+Significant changes: 
+
+    1.8.0 will use an Xcode project instead of a Makefile (to prepare for 2.0.0)
+    2.0.0 will break out the commands into their own files, and create ios-deploy-lib for node.js use
+
 ## Installation
 =======
 

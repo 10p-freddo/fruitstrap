@@ -18,7 +18,7 @@
 #include "MobileDevice.h"
 #include "errors.h"
 
-#define APP_VERSION    "1.7.0"
+#define APP_VERSION    "1.7.1"
 #define PREP_CMDS_PATH "/tmp/fruitstrap-lldb-prep-cmds-"
 #define LLDB_SHELL "lldb -s " PREP_CMDS_PATH
 /*
@@ -1002,11 +1002,11 @@ void setup_lldb(AMDeviceRef device, CFURLRef url) {
 
     if(AMDeviceGetInterfaceType(device) == 2)
     {
-        printf("Cannot debug %s over %s.\n", CFStringGetCStringPtr(device_full_name, CFStringGetSystemEncoding()), CFStringGetCStringPtr(device_interface_name, CFStringGetSystemEncoding()));
+        CFShow([NSString stringWithFormat:@"Cannot debug %@ over %@.\n", device_full_name, device_interface_name]);
         exit(0);
     }
 
-    printf("Starting debug of %s connected through %s...\n", CFStringGetCStringPtr(device_full_name, CFStringGetSystemEncoding()), CFStringGetCStringPtr(device_interface_name, CFStringGetSystemEncoding()));
+    CFShow([NSString stringWithFormat:@"Starting debug of %@ connected through %@...\n", device_full_name, device_interface_name]);
 
     mount_developer_image(device);      // put debugserver on the device
     start_remote_debug_server(device);  // start debugserver
@@ -1568,8 +1568,10 @@ void handle_device(AMDeviceRef device) {
         return;
     }
     if (device_id != NULL) {
-        if(strcmp(device_id, CFStringGetCStringPtr(found_device_id, CFStringGetSystemEncoding())) == 0) {
+        CFStringRef deviceCFSTR = CFStringCreateWithCString(NULL, device_id, kCFStringEncodingASCII);
+        if (CFStringCompare(deviceCFSTR, found_device_id, kCFCompareCaseInsensitive) == kCFCompareEqualTo) {
             found_device = true;
+            CFRelease(deviceCFSTR);
         } else {
             CFShow([NSString stringWithFormat:@"Skipping %@.\n", device_full_name]);
             return;
@@ -1587,7 +1589,7 @@ void handle_device(AMDeviceRef device) {
         } else if (strcmp("upload", command) == 0) {
             upload_file(device);
         } else if (strcmp("download", command) == 0) {
-            download_tree(device);
+            download_tree(device);    
         } else if (strcmp("mkdir", command) == 0) {
             make_directory(device);
         } else if (strcmp("rm", command) == 0) {

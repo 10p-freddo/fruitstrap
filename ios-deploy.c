@@ -221,6 +221,15 @@ void on_sys_error(const char* fmt, ...) {
     va_end(args);
 }
 
+void NSLogOut(NSString* format, ...) {
+    va_list valist;
+    va_start(valist, format);
+    NSString* str = [[[NSString alloc] initWithFormat:format arguments:valist] autorelease];
+    va_end(valist);
+
+    [[str stringByAppendingString:@"\n"] writeToFile:@"/dev/stdout" atomically:NO encoding:NSUTF8StringEncoding error:nil];
+}
+
 Boolean path_exists(CFTypeRef path) {
     if (CFGetTypeID(path) == CFStringGetTypeID()) {
         CFURLRef url = CFURLCreateWithFileSystemPath(NULL, path, kCFURLPOSIXPathStyle, true);

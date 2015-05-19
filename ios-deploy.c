@@ -18,7 +18,7 @@
 #include "MobileDevice.h"
 #include "errors.h"
 
-#define APP_VERSION    "1.7.0"
+#define APP_VERSION    @"1.7.0"
 #define PREP_CMDS_PATH "/tmp/fruitstrap-lldb-prep-cmds-"
 #define LLDB_SHELL "lldb -s " PREP_CMDS_PATH
 /*
@@ -454,13 +454,8 @@ CFStringRef get_device_full_name(const AMDeviceRef device) {
 
     if (verbose)
     {
-      char *devName = MYCFStringCopyUTF8String(device_name);
-      NSLogOut(@"Device Name: %@\n", devName);
-      free(devName);
-
-      char *mdlName = MYCFStringCopyUTF8String(model_name);
-      NSLogOut(@"Model Name: %@\n", mdlName);
-      free(mdlName);
+      NSLogOut(@"Device Name: %@", device_name);
+      NSLogOut(@"Model Name: %@", model_name);
     }
 
     if(device_name != NULL && model_name != NULL)
@@ -656,7 +651,7 @@ mach_error_t install_callback(CFDictionaryRef dict, int arg) {
     CFStringRef status = CFDictionaryGetValue(dict, CFSTR("Status"));
     CFNumberGetValue(CFDictionaryGetValue(dict, CFSTR("PercentComplete")), kCFNumberSInt32Type, &percent);
 
-    NSLogOut(@"[%3d%%] %@\n", (percent / 2) + 50, status);
+    NSLogOut(@"[%3d%%] %@", (percent / 2) + 50, status);
     return 0;
 }
 
@@ -1011,11 +1006,11 @@ void setup_lldb(AMDeviceRef device, CFURLRef url) {
 
     if(AMDeviceGetInterfaceType(device) == 2)
     {
-        NSLogOut(@"Cannot debug %@ over %@.\n", device_full_name, device_interface_name);
+        NSLogOut(@"Cannot debug %@ over %@.", device_full_name, device_interface_name);
         exit(0);
     }
 
-    NSLogOut(@"Starting debug of %@ connected through %@...\n", device_full_name, device_interface_name);
+    NSLogOut(@"Starting debug of %@ connected through %@...", device_full_name, device_interface_name);
 
     mount_developer_image(device);      // put debugserver on the device
     start_remote_debug_server(device);  // start debugserver
@@ -1164,7 +1159,7 @@ void read_dir(service_conn_t afcFd, afc_connection* afc_conn_p, const char* dir,
         AFCConnectionOpen(afcFd, 0, &afc_conn_p);
     }
 
-    NSLogOut(@"%@\n", dir);
+    NSLogOut(@"%@", [NSString stringWithUTF8String:dir]);
 
     afc_dictionary* afc_dict_p;
     char *key, *val;
@@ -1344,8 +1339,7 @@ void list_bundle_id(AMDeviceRef device)
     CFDictionaryGetKeysAndValues(result, keys, NULL);
     for(int i = 0; i < count; ++i) {
         CFStringRef test = (CFStringRef)keys[i];
-        const char * key =  CFStringGetCStringPtr((CFStringRef)keys[i], kCFStringEncodingASCII);
-        NSLogOut(@"%@", key);
+        NSLogOut(@"%@", (CFStringRef)keys[i]);
     }
     
     check_error(AMDeviceStopSession(device));
@@ -1584,7 +1578,7 @@ void handle_device(AMDeviceRef device) {
         found_device = true;
     }
 
-    NSLogOut(@"[....] Using %@ (%@).", device_full_name, found_device_id);
+    NSLogOut(@"[....] Using %@.", device_full_name);
 
     if (command_only) {
         if (strcmp("list", command) == 0) {
@@ -1697,7 +1691,7 @@ void handle_device(AMDeviceRef device) {
         CFRelease(path);
         CFRelease(options);
 
-        NSLogOut(@"[100%%] Installed package %@", app_path);
+        NSLogOut(@"[100%%] Installed package %@", [NSString stringWithUTF8String:app_path]);
     }
 
     if (!debug)

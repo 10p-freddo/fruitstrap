@@ -1843,6 +1843,7 @@ int main(int argc, char *argv[]) {
             break;
         case 'I':
             interactive = false;
+            debug = 1;
             break;
         case 'L':
             interactive = false;

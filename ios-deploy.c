@@ -1478,10 +1478,10 @@ void upload_file(AMDeviceRef device) {
 
     int ret = AFCFileRefOpen(afc_conn_p, target_filename, 3, &file_ref);
     if (ret == 0x000a) {
-        on_error(@"Cannot write to %@. Permission error.", target_filename);
+        on_error(@"Cannot write to %@. Permission error.", [NSString stringWithUTF8String:target_filename]);
     }
     if (ret == 0x0009) {
-        on_error(@"Target %@ is a directory.", target_filename);
+        on_error(@"Target %@ is a directory.", [NSString stringWithUTF8String:target_filename]);
     }
     assert(ret == 0);
     assert(AFCFileRefWrite(afc_conn_p, file_ref, file_content, file_size) == 0);

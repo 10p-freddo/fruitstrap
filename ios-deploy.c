@@ -1848,6 +1848,7 @@ int main(int argc, char *argv[]) {
         case 'L':
             interactive = false;
             justlaunch = true;
+            debug = 1;
             break;
         case 'c':
             detect_only = true;

@@ -1387,25 +1387,13 @@ void copy_file_callback(afc_connection* afc_conn_p, const char *name,int file)
     }
 }
 
-void mkdirhier(char *path)
-{
-    char *slash;
-    struct stat buf;
-
-    if (path[0]=='.' && path[1]=='/') path+=2;
-
-    if ((slash = strrchr(path,'/'))) {
-	*slash = '\0';
-	if (stat(path,&buf)==0) {
-	    *slash = '/';
-	    return;
-	}
-	mkdirhier(path);
-	mkdir (path,0777);
-	*slash = '/';
-    }
-
-    return;
+BOOL mkdirp(NSString* path) {
+    NSError* error = nil;
+    BOOL success = [[NSFileManager defaultManager] createDirectoryAtPath:path 
+                                             withIntermediateDirectories:YES 
+                                                              attributes:nil 
+                                                                   error:&error];
+    return success;
 }
 
 void download_tree(AMDeviceRef device)
@@ -1413,12 +1401,15 @@ void download_tree(AMDeviceRef device)
     service_conn_t houseFd = start_house_arrest_service(device);
     afc_connection* afc_conn_p = NULL;
     char *dirname = NULL;
+    
+    NSString* targetPath = [NSString pathWithComponents:@[ @(target_filename), @(list_root)] ];
+    mkdirp([targetPath stringByDeletingLastPathComponent]);
 
     if (AFCConnectionOpen(houseFd, 0, &afc_conn_p) == 0)  do {
 
 	if (target_filename) {
 	    dirname = strdup(target_filename);
-	    mkdirhier(dirname);
+	    mkdirp(@(dirname));
 	    if (mkdir(dirname,0777) && errno!=EEXIST) {
 		fprintf(stderr,"mkdir(\"%s\") failed: %s\n",dirname,strerror(errno));
 		break;

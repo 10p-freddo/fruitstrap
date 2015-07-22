@@ -171,6 +171,7 @@ static errorcode_to_id_t errorcode_to_id[] = {
 	// Errors without id->string mapping.
 	{ 0xe8008015, "A valid provisioning profile for this executable was not found."},
 	{ 0xe8008019, "The application does not have a valid signature." },
+	{ 0xe800801c, "No code signature found." },
 };
 
 const int errorcode_to_id_count = sizeof(errorcode_to_id) / sizeof(errorcode_to_id_t);

@@ -9,7 +9,8 @@ typedef struct error_id_to_message {
 	const char* message;
 } error_id_to_message_t;
 
-// Taken from https://github.com/samdmarshall/SDMMobileDevice/blob/master/Framework/MobileDevice/Error/SDMMD_Error.h
+// Most error codes are taken from SDMMobileDevice framework, and were reverse engineered by Sam Marshall.
+// https://github.com/samdmarshall/SDMMobileDevice/blob/master/Framework/MobileDevice/Error/SDMMD_Error.h
 static errorcode_to_id_t errorcode_to_id[] = {
 	{ 0xe8000001, "kAMDUndefinedError" },
 	{ 0xe8000002, "kAMDBadHeaderError" },

@@ -193,7 +193,7 @@ const int exitcode_app_crash = 254;
         {                                                                       \
             const char* msg = get_error_message(err);                           \
             /*on_error("Error 0x%x: %s " #call, err, msg ? msg : "unknown.");*/    \
-            on_error(@"Error 0x%x: %s " #call, err, msg ? [NSString stringWithUTF8String:msg] : @"unknown."); \
+            on_error(@"Error 0x%x: %@ " #call, err, msg ? [NSString stringWithUTF8String:msg] : @"unknown."); \
         }                                                                       \
     } while (false);
 

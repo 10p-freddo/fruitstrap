@@ -9,7 +9,29 @@ typedef struct error_id_to_message {
 	const char* message;
 } error_id_to_message_t;
 
-// Taken from https://github.com/samdmarshall/SDMMobileDevice/blob/master/Framework/MobileDevice/Error/SDMMD_Error.h
+// Parts of error code to localization id map is taken from SDMMobileDevice framework. Associated license is bellow.
+// https://github.com/samdmarshall/SDMMobileDevice/blob/master/Framework/MobileDevice/Error/SDMMD_Error.h
+//
+// Copyright (c) 2014, Sam Marshall
+// All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without modification, are permitted provided that the 
+// following conditions are met:
+//
+// 1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+//
+// 2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer 
+// 		in the documentation and/or other materials provided with the distribution.
+//
+// 3. Neither the name of Sam Marshall nor the names of its contributors may be used to endorse or promote products derived from this
+// 		software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+// COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+// HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 static errorcode_to_id_t errorcode_to_id[] = {
 	{ 0xe8000001, "kAMDUndefinedError" },
 	{ 0xe8000002, "kAMDBadHeaderError" },
@@ -168,7 +190,11 @@ static errorcode_to_id_t errorcode_to_id[] = {
 	{ 0xe800009b, "kAMDMCChallengeRequired" },
 	{ 0xe800009c, "kAMDMissingBundleVersionError" },
 
-	{ 0xe8008015, "A valid provisioning profile for this executable was not found."},
+	// Errors without id->string mapping.
+	{ 0xe8008015, "A valid provisioning profile for this executable was not found." },
+	{ 0xe8008018, "The identity used to sign the executable is no longer valid. Please verify that your device’s clock is properly set, and that your signing certificate is not expired." },
+	{ 0xe8008019, "The application does not have a valid signature." },
+	{ 0xe800801c, "No code signature found." },
 };
 
 const int errorcode_to_id_count = sizeof(errorcode_to_id) / sizeof(errorcode_to_id_t);

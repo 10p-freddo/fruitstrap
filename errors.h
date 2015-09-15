@@ -192,6 +192,8 @@ static errorcode_to_id_t errorcode_to_id[] = {
 
 	// Errors without id->string mapping.
 	{ 0xe8008015, "A valid provisioning profile for this executable was not found." },
+	{ 0xe8008016, "The entitlements specified in your application’s Code Signing Entitlements file do not match those specified in your provisioning profile." },
+	{ 0xe8008017, "A signed resource has been added, modified, or deleted." },
 	{ 0xe8008018, "The identity used to sign the executable is no longer valid. Please verify that your device’s clock is properly set, and that your signing certificate is not expired." },
 	{ 0xe8008019, "The application does not have a valid signature." },
 	{ 0xe800801c, "No code signature found." },

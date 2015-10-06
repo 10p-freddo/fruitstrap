@@ -218,7 +218,7 @@ void on_sys_error(NSString* format, ...) {
     NSString* str = [[[NSString alloc] initWithFormat:format arguments:valist] autorelease];
     va_end(valist);
     
-    on_error(@"%@ : %@", str, errstr);
+    on_error(@"%@ : %@", str, [NSString stringWithUTF8String:errstr]);
 }
 
 void NSLogOut(NSString* format, ...) {
@@ -1929,7 +1929,7 @@ int main(int argc, char *argv[]) {
 
     if (app_path) {
         if (access(app_path, F_OK) != 0) {
-            on_sys_error(@"Can't access app path '%@'", app_path);
+            on_sys_error(@"Can't access app path '%@'", [NSString stringWithUTF8String:app_path]);
         }
     }
 

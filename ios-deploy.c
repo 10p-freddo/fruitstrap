@@ -431,6 +431,11 @@ const CFStringRef get_device_hardware_name(const AMDeviceRef device) {
     GET_FRIENDLY_MODEL_NAME(model, "N61AP", "iPhone 6 (GSM)")
     GET_FRIENDLY_MODEL_NAME(model, "N56AP", "iPhone 6 Plus")
 
+	GET_FRIENDLY_MODEL_NAME(model, "N71mAP", "iPhone 6s")
+	GET_FRIENDLY_MODEL_NAME(model, "N71AP", "iPhone 6s")
+	GET_FRIENDLY_MODEL_NAME(model, "N66AP", "iPhone 6s Plus")
+	GET_FRIENDLY_MODEL_NAME(model, "N66mAP", "iPhone 6s Plus")
+
     return model;
 }
 

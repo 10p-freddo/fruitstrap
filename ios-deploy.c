@@ -735,7 +735,7 @@ void write_lldb_prep_cmds(AMDeviceRef device, CFURLRef disk_app_url) {
     rangeLLDB.length = CFStringGetLength(pmodule);
 
     if (args) {
-        CFStringRef cf_args = CFStringCreateWithCString(NULL, args, kCFStringEncodingASCII);
+        CFStringRef cf_args = CFStringCreateWithCString(NULL, args, kCFStringEncodingUTF8);
         CFStringFindAndReplace(cmds, CFSTR("{args}"), cf_args, range, 0);
         rangeLLDB.length = CFStringGetLength(pmodule);
         CFStringFindAndReplace(pmodule, CFSTR("{args}"), cf_args, rangeLLDB, 0);
@@ -786,14 +786,14 @@ void write_lldb_prep_cmds(AMDeviceRef device, CFURLRef disk_app_url) {
     }
     strcat(python_file_path, ".py");
 
-    CFStringRef cf_python_command = CFStringCreateWithCString(NULL, python_command, kCFStringEncodingASCII);
+    CFStringRef cf_python_command = CFStringCreateWithCString(NULL, python_command, kCFStringEncodingUTF8);
     CFStringFindAndReplace(cmds, CFSTR("{python_command}"), cf_python_command, range, 0);
     range.length = CFStringGetLength(cmds);
-    CFStringRef cf_python_file_path = CFStringCreateWithCString(NULL, python_file_path, kCFStringEncodingASCII);
+    CFStringRef cf_python_file_path = CFStringCreateWithCString(NULL, python_file_path, kCFStringEncodingUTF8);
     CFStringFindAndReplace(cmds, CFSTR("{python_file_path}"), cf_python_file_path, range, 0);
     range.length = CFStringGetLength(cmds);
 
-    CFDataRef cmds_data = CFStringCreateExternalRepresentation(NULL, cmds, kCFStringEncodingASCII, 0);
+    CFDataRef cmds_data = CFStringCreateExternalRepresentation(NULL, cmds, kCFStringEncodingUTF8, 0);
     char prep_cmds_path[300] = PREP_CMDS_PATH;
     if(device_id != NULL)
         strcat(prep_cmds_path, device_id);
@@ -815,7 +815,7 @@ void write_lldb_prep_cmds(AMDeviceRef device, CFURLRef disk_app_url) {
     fwrite(extra_cmds, strlen(extra_cmds), 1, out);
     fclose(out);
 
-    CFDataRef pmodule_data = CFStringCreateExternalRepresentation(NULL, pmodule, kCFStringEncodingASCII, 0);
+    CFDataRef pmodule_data = CFStringCreateExternalRepresentation(NULL, pmodule, kCFStringEncodingUTF8, 0);
 
     out = fopen(python_file_path, "w");
     fwrite(CFDataGetBytePtr(pmodule_data), CFDataGetLength(pmodule_data), 1, out);
@@ -1229,7 +1229,7 @@ service_conn_t start_house_arrest_service(AMDeviceRef device) {
         on_error(@"Bundle id is not specified");
     }
 
-    CFStringRef cf_bundle_id = CFStringCreateWithCString(NULL, bundle_id, kCFStringEncodingASCII);
+    CFStringRef cf_bundle_id = CFStringCreateWithCString(NULL, bundle_id, kCFStringEncodingUTF8);
     if (AMDeviceStartHouseArrestService(device, cf_bundle_id, 0, &houseFd, 0) != 0)
     {
         on_error(@"Unable to find bundle with id: %@", bundle_id);
@@ -1301,7 +1301,7 @@ int app_exists(AMDeviceRef device)
     check_error(AMDeviceValidatePairing(device));
     check_error(AMDeviceStartSession(device));
 
-    CFStringRef cf_bundle_id = CFStringCreateWithCString(NULL, bundle_id, kCFStringEncodingASCII);
+    CFStringRef cf_bundle_id = CFStringCreateWithCString(NULL, bundle_id, kCFStringEncodingUTF8);
 
     NSArray *a = [NSArray arrayWithObjects:@"CFBundleIdentifier", nil];
     NSDictionary *optionsDict = [NSDictionary dictionaryWithObject:a forKey:@"ReturnAttributes"];
@@ -1521,7 +1521,7 @@ void uninstall_app(AMDeviceRef device) {
     CFStringRef cf_uninstall_bundle_id = NULL;
     if (bundle_id != NULL)
     {
-        cf_uninstall_bundle_id = CFStringCreateWithCString(NULL, bundle_id, kCFStringEncodingASCII);
+        cf_uninstall_bundle_id = CFStringCreateWithCString(NULL, bundle_id, kCFStringEncodingUTF8);
     } else {
         on_error(@"Error: you need to pass in the bundle id, (i.e. --bundle_id com.my.app)");
     }
@@ -1559,7 +1559,7 @@ void handle_device(AMDeviceRef device) {
         return;
     }
     if (device_id != NULL) {
-        CFStringRef deviceCFSTR = CFStringCreateWithCString(NULL, device_id, kCFStringEncodingASCII);
+        CFStringRef deviceCFSTR = CFStringCreateWithCString(NULL, device_id, kCFStringEncodingUTF8);
         if (CFStringCompare(deviceCFSTR, found_device_id, kCFCompareCaseInsensitive) == kCFCompareEqualTo) {
             found_device = true;
             CFRelease(deviceCFSTR);
@@ -1598,7 +1598,7 @@ void handle_device(AMDeviceRef device) {
 
     CFRetain(device); // don't know if this is necessary?
 
-    CFStringRef path = CFStringCreateWithCString(NULL, app_path, kCFStringEncodingASCII);
+    CFStringRef path = CFStringCreateWithCString(NULL, app_path, kCFStringEncodingUTF8);
     CFURLRef relative_url = CFURLCreateWithFileSystemPath(NULL, path, kCFURLPOSIXPathStyle, false);
     CFURLRef url = CFURLCopyAbsoluteURL(relative_url);
 
@@ -1611,7 +1611,7 @@ void handle_device(AMDeviceRef device) {
         CFStringRef cf_uninstall_bundle_id = NULL;
         if (bundle_id != NULL)
         {
-            cf_uninstall_bundle_id = CFStringCreateWithCString(NULL, bundle_id, kCFStringEncodingASCII);
+            cf_uninstall_bundle_id = CFStringCreateWithCString(NULL, bundle_id, kCFStringEncodingUTF8);
         } else {
             cf_uninstall_bundle_id = get_bundle_id(url);
         }

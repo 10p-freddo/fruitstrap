@@ -1402,6 +1402,9 @@ void download_tree(AMDeviceRef device)
     afc_connection* afc_conn_p = NULL;
     char *dirname = NULL;
     
+	list_root = list_root? list_root : "/";
+	target_filename = target_filename? target_filename : ".";
+	 
     NSString* targetPath = [NSString pathWithComponents:@[ @(target_filename), @(list_root)] ];
     mkdirp([targetPath stringByDeletingLastPathComponent]);
 
@@ -1420,7 +1423,7 @@ void download_tree(AMDeviceRef device)
 	    }
 	}
 
-	read_dir(houseFd, afc_conn_p, list_root?list_root:"/", copy_file_callback);
+	read_dir(houseFd, afc_conn_p, list_root, copy_file_callback);
 
     } while(0);
 

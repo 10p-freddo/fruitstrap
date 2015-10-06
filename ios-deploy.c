@@ -19,8 +19,8 @@
 #include "errors.h"
 
 #define APP_VERSION    @"1.7.0"
-#define PREP_CMDS_PATH "/tmp/fruitstrap-lldb-prep-cmds-"
-#define LLDB_SHELL "lldb -s " PREP_CMDS_PATH
+#define PREP_CMDS_PATH @"/tmp/%@/fruitstrap-lldb-prep-cmds-"
+#define LLDB_SHELL @"lldb -s %@"
 /*
  * Startup script passed to lldb.
  * To see how xcode interacts with lldb, put this into .lldbinit:
@@ -179,6 +179,7 @@ pid_t child = 0;
 // Signal sent from child to parent process when LLDB finishes.
 const int SIGLLDB = SIGUSR1;
 AMDeviceRef best_device_match = NULL;
+NSString* tmpUUID;
 
 // Error codes we report on different failures, so scripts can distinguish between user app exit
 // codes and our exit codes. For non app errors we use codes in reserved 128-255 range.
@@ -228,6 +229,15 @@ void NSLogOut(NSString* format, ...) {
     va_end(valist);
 
     [[str stringByAppendingString:@"\n"] writeToFile:@"/dev/stdout" atomically:NO encoding:NSUTF8StringEncoding error:nil];
+}
+
+BOOL mkdirp(NSString* path) {
+    NSError* error = nil;
+    BOOL success = [[NSFileManager defaultManager] createDirectoryAtPath:path 
+                                             withIntermediateDirectories:YES 
+                                                              attributes:nil 
+                                                                   error:&error];
+    return success;
 }
 
 Boolean path_exists(CFTypeRef path) {
@@ -781,26 +791,27 @@ void write_lldb_prep_cmds(AMDeviceRef device, CFURLRef disk_app_url) {
     CFStringRef disk_container_path = CFURLCopyFileSystemPath(disk_container_url, kCFURLPOSIXPathStyle);
     CFStringFindAndReplace(cmds, CFSTR("{disk_container}"), disk_container_path, range, 0);
 
-    char python_file_path[300] = "/tmp/fruitstrap_";
-    char python_command[300] = "fruitstrap_";
+    NSString* python_file_path = [NSString stringWithFormat:@"/tmp/%@/fruitstrap_", tmpUUID];
+	mkdirp(python_file_path);
+	
+    NSString* python_command = @"fruitstrap_";
     if(device_id != NULL) {
-        strcat(python_file_path, device_id);
-        strcat(python_command, device_id);
+		python_file_path = [python_file_path stringByAppendingString:[NSString stringWithUTF8String:device_id]];
+		python_command = [python_command stringByAppendingString:[NSString stringWithUTF8String:device_id]];
     }
-    strcat(python_file_path, ".py");
+	python_file_path = [python_file_path stringByAppendingString:@".py"];
 
-    CFStringRef cf_python_command = CFStringCreateWithCString(NULL, python_command, kCFStringEncodingUTF8);
-    CFStringFindAndReplace(cmds, CFSTR("{python_command}"), cf_python_command, range, 0);
+    CFStringFindAndReplace(cmds, CFSTR("{python_command}"), (CFStringRef)python_command, range, 0);
     range.length = CFStringGetLength(cmds);
-    CFStringRef cf_python_file_path = CFStringCreateWithCString(NULL, python_file_path, kCFStringEncodingUTF8);
-    CFStringFindAndReplace(cmds, CFSTR("{python_file_path}"), cf_python_file_path, range, 0);
+    CFStringFindAndReplace(cmds, CFSTR("{python_file_path}"), (CFStringRef)python_file_path, range, 0);
     range.length = CFStringGetLength(cmds);
 
     CFDataRef cmds_data = CFStringCreateExternalRepresentation(NULL, cmds, kCFStringEncodingUTF8, 0);
-    char prep_cmds_path[300] = PREP_CMDS_PATH;
-    if(device_id != NULL)
-        strcat(prep_cmds_path, device_id);
-    FILE *out = fopen(prep_cmds_path, "w");
+    NSString* prep_cmds_path = [NSString stringWithFormat:PREP_CMDS_PATH, tmpUUID];
+    if(device_id != NULL) {
+        prep_cmds_path = [prep_cmds_path stringByAppendingString:[NSString stringWithUTF8String:device_id]];
+	}
+    FILE *out = fopen([prep_cmds_path UTF8String], "w");
     fwrite(CFDataGetBytePtr(cmds_data), CFDataGetLength(cmds_data), 1, out);
     // Write additional commands based on mode we're running in
     const char* extra_cmds;
@@ -820,7 +831,7 @@ void write_lldb_prep_cmds(AMDeviceRef device, CFURLRef disk_app_url) {
 
     CFDataRef pmodule_data = CFStringCreateExternalRepresentation(NULL, pmodule, kCFStringEncodingUTF8, 0);
 
-    out = fopen(python_file_path, "w");
+    out = fopen([python_file_path UTF8String], "w");
     fwrite(CFDataGetBytePtr(pmodule_data), CFDataGetLength(pmodule_data), 1, out);
     fclose(out);
 
@@ -836,8 +847,6 @@ void write_lldb_prep_cmds(AMDeviceRef device, CFURLRef disk_app_url) {
     CFRelease(disk_container_url);
     CFRelease(disk_container_path);
     CFRelease(cmds_data);
-    CFRelease(cf_python_command);
-    CFRelease(cf_python_file_path);
 }
 
 CFSocketRef server_socket;
@@ -1053,12 +1062,15 @@ void launch_debugger(AMDeviceRef device, CFURLRef url) {
             // this we setup a dummy pipe on stdin, so read() would block expecting "user's" input.
             setup_dummy_pipe_on_stdin(pfd);
 
-        char lldb_shell[400];
-        sprintf(lldb_shell, LLDB_SHELL);
-        if(device_id != NULL)
-            strcat(lldb_shell, device_id);
+        NSString* lldb_shell;
+		NSString* prep_cmds = [NSString stringWithFormat:PREP_CMDS_PATH, tmpUUID];
+		lldb_shell = [NSString stringWithFormat:LLDB_SHELL, prep_cmds];
+		
+        if(device_id != NULL) {
+			lldb_shell = [lldb_shell stringByAppendingString: [NSString stringWithUTF8String:device_id]];
+		}
 
-        int status = system(lldb_shell); // launch lldb
+        int status = system([lldb_shell UTF8String]); // launch lldb
         if (status == -1)
             perror("failed launching lldb");
 
@@ -1090,12 +1102,14 @@ void launch_debugger_and_exit(AMDeviceRef device, CFURLRef url) {
         if (dup2(pfd[0],STDIN_FILENO) == -1)
             perror("dup2 failed");
 
-        char lldb_shell[400];
-        sprintf(lldb_shell, LLDB_SHELL);
-        if(device_id != NULL)
-            strcat(lldb_shell, device_id);
 
-        int status = system(lldb_shell); // launch lldb
+        NSString* prep_cmds = [NSString stringWithFormat:PREP_CMDS_PATH, tmpUUID];
+		NSString* lldb_shell = [NSString stringWithFormat:LLDB_SHELL, prep_cmds];
+        if(device_id != NULL) {
+			lldb_shell = [lldb_shell stringByAppendingString:[NSString stringWithUTF8String:device_id]];
+		}
+
+        int status = system([lldb_shell UTF8String]); // launch lldb
         if (status == -1)
             perror("failed launching lldb");
 
@@ -1388,15 +1402,6 @@ void copy_file_callback(afc_connection* afc_conn_p, const char *name,int file)
 	if (mkdir(local_name,0777) && errno!=EEXIST)
 	    fprintf(stderr,"mkdir(\"%s\") failed: %s\n",local_name,strerror(errno));
     }
-}
-
-BOOL mkdirp(NSString* path) {
-    NSError* error = nil;
-    BOOL success = [[NSFileManager defaultManager] createDirectoryAtPath:path 
-                                             withIntermediateDirectories:YES 
-                                                              attributes:nil 
-                                                                   error:&error];
-    return success;
 }
 
 void download_tree(AMDeviceRef device)
@@ -1786,6 +1791,13 @@ void show_version() {
 }
 
 int main(int argc, char *argv[]) {
+
+	// create a UUID for tmp purposes
+    CFUUIDRef uuid = CFUUIDCreate(NULL);
+    CFStringRef str = CFUUIDCreateString(NULL, uuid);
+    CFRelease(uuid);
+    tmpUUID = [(NSString*)str autorelease];
+	
     static struct option longopts[] = {
         { "debug", no_argument, NULL, 'd' },
         { "id", required_argument, NULL, 'i' },

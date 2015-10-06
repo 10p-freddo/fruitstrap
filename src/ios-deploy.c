@@ -702,7 +702,10 @@ CFURLRef copy_device_app_url(AMDeviceRef device, CFStringRef identifier) {
 CFStringRef copy_disk_app_identifier(CFURLRef disk_app_url) {
     CFURLRef plist_url = CFURLCreateCopyAppendingPathComponent(NULL, disk_app_url, CFSTR("Info.plist"), false);
     CFReadStreamRef plist_stream = CFReadStreamCreateWithFile(NULL, plist_url);
-    CFReadStreamOpen(plist_stream);
+    if (!CFReadStreamOpen(plist_stream)) {
+    	on_error(@"Cannot read Info.plist file: %@", plist_url);
+    }
+	
     CFPropertyListRef plist = CFPropertyListCreateWithStream(NULL, plist_stream, 0, kCFPropertyListImmutable, NULL, NULL);
     CFStringRef bundle_identifier = CFRetain(CFDictionaryGetValue(plist, CFSTR("CFBundleIdentifier")));
     CFReadStreamClose(plist_stream);

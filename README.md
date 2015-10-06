@@ -98,7 +98,7 @@ The commands below assume that you have an app called `my.app` with bundle id `b
     ios-deploy --exists --bundle_id com.apple.mobilemail
 
     // Download the Documents directory of the app *only*
-    ios-deploy --download=/Documents -bundle_id my.app.id --to ./my_download_location
+    ios-deploy --download=/Documents --bundle_id my.app.id --to ./my_download_location
     
     // List ids and names of connected devices
     ios-deploy -c

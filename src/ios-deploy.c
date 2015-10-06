@@ -180,6 +180,7 @@ pid_t child = 0;
 const int SIGLLDB = SIGUSR1;
 AMDeviceRef best_device_match = NULL;
 NSString* tmpUUID;
+struct am_device_notification *notify;
 
 // Error codes we report on different failures, so scripts can distinguish between user app exit
 // codes and our exit codes. For non app errors we use codes in reserved 128-255 range.
@@ -1709,7 +1710,8 @@ void device_callback(struct am_device_notification_callback_info *info, void *ar
     switch (info->msg) {
         case ADNCI_MSG_CONNECTED:
             if(device_id != NULL || !debug || AMDeviceGetInterfaceType(info->dev) != 2) {
-                handle_device(info->dev);
+                AMDeviceNotificationUnsubscribe(*notify);
+				handle_device(info->dev);
             } else if(best_device_match == NULL) {
                 best_device_match = info->dev;
                 CFRetain(best_device_match);
@@ -1962,7 +1964,6 @@ int main(int argc, char *argv[]) {
         NSLogOut(@"[....] Waiting for iOS device to be connected");
     }
 
-    struct am_device_notification *notify;
     AMDeviceNotificationSubscribe(&device_callback, 0, 0, NULL, &notify);
     CFRunLoopRun();
 }

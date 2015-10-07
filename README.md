@@ -32,13 +32,13 @@ Now install ios-deploy with the [node.js](https://nodejs.org) package manager:
 npm install -g ios-deploy
 ```
 
-To install from source:
+To build from source:
 
 ```
-make install prefix=/usr/local
+xcodebuild
 ```
 
-This will install ios-deploy in the `bin` folder of `/usr/local`, i.e. `/usr/local/bin`
+This will build `ios-deploy` into the `build/Release` folder.
 
 
 ### OS X 10.11 El Capitan

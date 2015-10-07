@@ -169,7 +169,7 @@ char *app_path = NULL;
 char *device_id = NULL;
 char *args = NULL;
 char *list_root = NULL;
-int timeout = 0;
+int _timeout = 0;
 int port = 0;	// 0 means "dynamically assigned"
 CFStringRef last_path = NULL;
 service_conn_t gdbfd;
@@ -326,7 +326,7 @@ const char *get_home() {
 
 CFStringRef copy_xcode_path_for(CFStringRef subPath, CFStringRef search) {
     CFStringRef xcodeDevPath = copy_xcode_dev_path();
-    CFStringRef path;
+    CFStringRef path = NULL;
     bool found = false;
     const char* home = get_home();
     CFRange slashLocation;
@@ -864,7 +864,7 @@ int kill_ptree(pid_t root, int signum);
 void
 server_callback (CFSocketRef s, CFSocketCallBackType callbackType, CFDataRef address, const void *data, void *info)
 {
-    int res;
+    ssize_t res;
 
     if (CFDataGetLength (data) == 0) {
         // close the socket on which we've got end-of-file, the server_socket.
@@ -974,7 +974,7 @@ int kill_ptree(pid_t root, int signum) {
         return -1;
     }
 
-    kill_ptree_inner(root, signum, kp, len / sizeof(struct kinfo_proc));
+    kill_ptree_inner(root, signum, kp, (int)(len / sizeof(struct kinfo_proc)));
 
     free(kp);
     return 0;
@@ -1365,7 +1365,6 @@ void list_bundle_id(AMDeviceRef device)
     const void *keys[count];
     CFDictionaryGetKeysAndValues(result, keys, NULL);
     for(int i = 0; i < count; ++i) {
-        CFStringRef test = (CFStringRef)keys[i];
         NSLogOut(@"%@", (CFStringRef)keys[i]);
     }
     
@@ -1506,8 +1505,6 @@ void upload_file(AMDeviceRef device) {
 void make_directory(AMDeviceRef device) {
     service_conn_t houseFd = start_house_arrest_service(device);
 
-    afc_file_ref file_ref;
-
     afc_connection afc_conn;
     afc_connection* afc_conn_p = &afc_conn;
     AFCConnectionOpen(houseFd, 0, &afc_conn_p);
@@ -1518,8 +1515,6 @@ void make_directory(AMDeviceRef device) {
 
 void remove_path(AMDeviceRef device) {
     service_conn_t houseFd = start_house_arrest_service(device);
-
-    afc_file_ref file_ref;
 
     afc_connection afc_conn;
     afc_connection* afc_conn_p = &afc_conn;
@@ -1862,7 +1857,7 @@ int main(int argc, char *argv[]) {
             verbose = 1;
             break;
         case 't':
-            timeout = atoi(optarg);
+            _timeout = atoi(optarg);
             break;
         case 'u':
             unbuffered = 1;
@@ -1951,8 +1946,8 @@ int main(int argc, char *argv[]) {
         setbuf(stderr, NULL);
     }
 
-    if (detect_only && timeout == 0) {
-        timeout = 5;
+    if (detect_only && _timeout == 0) {
+        _timeout = 5;
     }
 
     if (app_path) {
@@ -1962,11 +1957,11 @@ int main(int argc, char *argv[]) {
     }
 
     AMDSetLogLevel(5); // otherwise syslog gets flooded with crap
-    if (timeout > 0)
+    if (_timeout > 0)
     {
-        CFRunLoopTimerRef timer = CFRunLoopTimerCreate(NULL, CFAbsoluteTimeGetCurrent() + timeout, 0, 0, 0, timeout_callback, NULL);
+        CFRunLoopTimerRef timer = CFRunLoopTimerCreate(NULL, CFAbsoluteTimeGetCurrent() + _timeout, 0, 0, 0, timeout_callback, NULL);
         CFRunLoopAddTimer(CFRunLoopGetCurrent(), timer, kCFRunLoopCommonModes);
-        NSLogOut(@"[....] Waiting up to %d seconds for iOS device to be connected", timeout);
+        NSLogOut(@"[....] Waiting up to %d seconds for iOS device to be connected", _timeout);
     }
     else
     {

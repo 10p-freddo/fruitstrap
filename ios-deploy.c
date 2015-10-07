@@ -1182,8 +1182,6 @@ void read_dir(service_conn_t afcFd, afc_connection* afc_conn_p, const char* dir,
         AFCConnectionOpen(afcFd, 0, &afc_conn_p);
     }
 
-    NSLogOut(@"%@", [NSString stringWithUTF8String:dir]);
-
     afc_dictionary* afc_dict_p;
     char *key, *val;
     int not_dir = 0;
@@ -1201,6 +1199,12 @@ void read_dir(service_conn_t afcFd, afc_connection* afc_conn_p, const char* dir,
         }
     }
     AFCKeyValueClose(afc_dict_p);
+	
+	if (not_dir) {
+	    NSLogOut(@"%@", [NSString stringWithUTF8String:dir]);
+	} else {
+		NSLogOut(@"%@/", [NSString stringWithUTF8String:dir]);
+	}
 
     if (not_dir) {
     	if (callback) (*callback)(afc_conn_p, dir, not_dir);

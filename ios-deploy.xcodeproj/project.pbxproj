@@ -10,21 +10,10 @@
 		7E70899C1B587DE4004D23AA /* ios-deploy.c in Sources */ = {isa = PBXBuildFile; fileRef = 7E7089991B587DE4004D23AA /* ios-deploy.c */; settings = {COMPILER_FLAGS = "-x objective-c -fno-objc-arc"; }; };
 		7E70899E1B587F29004D23AA /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7E70899D1B587F29004D23AA /* CoreFoundation.framework */; };
 		7E7089A01B58801E004D23AA /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7E70899F1B58801E004D23AA /* Foundation.framework */; };
-		7E7089B31B58826A004D23AA /* demo.c in Sources */ = {isa = PBXBuildFile; fileRef = 7E7089AF1B58826A004D23AA /* demo.c */; };
-		7E7089B41B5882C3004D23AA /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7E70899D1B587F29004D23AA /* CoreFoundation.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
 		7E70898C1B587BF3004D23AA /* CopyFiles */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = /usr/share/man/man1/;
-			dstSubfolderSpec = 0;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 1;
-		};
-		7E7089A51B58825B004D23AA /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = /usr/share/man/man1/;
@@ -42,12 +31,6 @@
 		7E70899B1B587DE4004D23AA /* MobileDevice.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = MobileDevice.h; path = src/MobileDevice.h; sourceTree = SOURCE_ROOT; };
 		7E70899D1B587F29004D23AA /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
 		7E70899F1B58801E004D23AA /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
-		7E7089A71B58825B004D23AA /* ios-deploy-demo */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "ios-deploy-demo"; sourceTree = BUILT_PRODUCTS_DIR; };
-		7E7089A91B58825B004D23AA /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
-		7E7089AF1B58826A004D23AA /* demo.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = demo.c; sourceTree = "<group>"; };
-		7E7089B01B58826A004D23AA /* Entitlements.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Entitlements.plist; sourceTree = "<group>"; };
-		7E7089B11B58826A004D23AA /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		7E7089B21B58826A004D23AA /* ResourceRules.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = ResourceRules.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -60,23 +43,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		7E7089A41B58825B004D23AA /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				7E7089B41B5882C3004D23AA /* CoreFoundation.framework in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		7E7089851B587BF3004D23AA = {
 			isa = PBXGroup;
 			children = (
-				7E7089AE1B58826A004D23AA /* demo */,
 				7E7089901B587BF3004D23AA /* ios-deploy */,
-				7E7089A81B58825B004D23AA /* ios-deploy-demo */,
 				7E7089A21B588219004D23AA /* Frameworks */,
 				7E70898F1B587BF3004D23AA /* Products */,
 			);
@@ -86,7 +59,6 @@
 			isa = PBXGroup;
 			children = (
 				7E70898E1B587BF3004D23AA /* ios-deploy */,
-				7E7089A71B58825B004D23AA /* ios-deploy-demo */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -110,25 +82,6 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		7E7089A81B58825B004D23AA /* ios-deploy-demo */ = {
-			isa = PBXGroup;
-			children = (
-				7E7089A91B58825B004D23AA /* main.m */,
-			);
-			path = "ios-deploy-demo";
-			sourceTree = "<group>";
-		};
-		7E7089AE1B58826A004D23AA /* demo */ = {
-			isa = PBXGroup;
-			children = (
-				7E7089AF1B58826A004D23AA /* demo.c */,
-				7E7089B01B58826A004D23AA /* Entitlements.plist */,
-				7E7089B11B58826A004D23AA /* Info.plist */,
-				7E7089B21B58826A004D23AA /* ResourceRules.plist */,
-			);
-			path = demo;
-			sourceTree = "<group>";
-		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -149,37 +102,16 @@
 			productReference = 7E70898E1B587BF3004D23AA /* ios-deploy */;
 			productType = "com.apple.product-type.tool";
 		};
-		7E7089A61B58825B004D23AA /* ios-deploy-demo */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 7E7089AB1B58825B004D23AA /* Build configuration list for PBXNativeTarget "ios-deploy-demo" */;
-			buildPhases = (
-				7E7089A31B58825B004D23AA /* Sources */,
-				7E7089A41B58825B004D23AA /* Frameworks */,
-				7E7089A51B58825B004D23AA /* CopyFiles */,
-				7E7089B51B5882EC004D23AA /* ShellScript */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			name = "ios-deploy-demo";
-			productName = "ios-deploy-demo";
-			productReference = 7E7089A71B58825B004D23AA /* ios-deploy-demo */;
-			productType = "com.apple.product-type.tool";
-		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
 		7E7089861B587BF3004D23AA /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0640;
+				LastUpgradeCheck = 0710;
 				ORGANIZATIONNAME = PhoneGap;
 				TargetAttributes = {
 					7E70898D1B587BF3004D23AA = {
-						CreatedOnToolsVersion = 6.4;
-					};
-					7E7089A61B58825B004D23AA = {
 						CreatedOnToolsVersion = 6.4;
 					};
 				};
@@ -190,6 +122,7 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
+				Base,
 			);
 			mainGroup = 7E7089851B587BF3004D23AA;
 			productRefGroup = 7E70898F1B587BF3004D23AA /* Products */;
@@ -197,26 +130,9 @@
 			projectRoot = "";
 			targets = (
 				7E70898D1B587BF3004D23AA /* ios-deploy */,
-				7E7089A61B58825B004D23AA /* ios-deploy-demo */,
 			);
 		};
 /* End PBXProject section */
-
-/* Begin PBXShellScriptBuildPhase section */
-		7E7089B51B5882EC004D23AA /* ShellScript */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "#mkdir -p demo.app\n#cp demo demo.app/\n#cp Info.plist ResourceRules.plist demo.app/\n#codesign -f -s \"iPhone Developer\" --entitlements Entitlements.plist demo.app";
-		};
-/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		7E70898A1B587BF3004D23AA /* Sources */ = {
@@ -224,14 +140,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				7E70899C1B587DE4004D23AA /* ios-deploy.c in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		7E7089A31B58825B004D23AA /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				7E7089B31B58826A004D23AA /* demo.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -258,6 +166,7 @@
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -339,26 +248,6 @@
 			};
 			name = Release;
 		};
-		7E7089AC1B58825B004D23AA /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"DEBUG=1",
-					"$(inherited)",
-				);
-				MACOSX_DEPLOYMENT_TARGET = 10.8;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-			};
-			name = Debug;
-		};
-		7E7089AD1B58825B004D23AA /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				MACOSX_DEPLOYMENT_TARGET = 10.8;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-			};
-			name = Release;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -379,14 +268,6 @@
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
-		};
-		7E7089AB1B58825B004D23AA /* Build configuration list for PBXNativeTarget "ios-deploy-demo" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				7E7089AC1B58825B004D23AA /* Debug */,
-				7E7089AD1B58825B004D23AA /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
 		};
 /* End XCConfigurationList section */
 	};

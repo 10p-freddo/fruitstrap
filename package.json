@@ -7,9 +7,9 @@
   "description": "launch iOS apps iOS devices from the command line (Xcode 7)",
   "main": "ios-deploy",
   "scripts": {
-    "preinstall": "./check_reqs.js && make ios-deploy"
+    "preinstall": "./check_reqs.js && xcodebuild"
   },
-  "bin": "./ios-deploy",
+  "bin": "./build/Release/ios-deploy",
   "repository": {
     "type": "git",
     "url": "https://github.com/phonegap/ios-deploy"

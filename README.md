@@ -4,9 +4,9 @@ Install and debug iOS apps without using Xcode. Designed to work on un-jailbroke
 
 ## Requirements
 
-* Mac OS X. Tested on 10.10 Yosemite and iOS 8.3
+* Mac OS X. Tested on 10.11 El Capitan and iOS 9.0
 * You need to have a valid iOS Development certificate installed.
-* Xcode 6 or greater should be installed
+* Xcode 6.4 or greater should be installed
 
 ## Roadmap
 
@@ -39,6 +39,14 @@ make install prefix=/usr/local
 ```
 
 This will install ios-deploy in the `bin` folder of `/usr/local`, i.e. `/usr/local/bin`
+
+
+### OS X 10.11 El Capitan
+
+If you are *not* using a node version manager like [nvm](https://github.com/creationix/nvm) or [n](https://github.com/tj/n), you may have to do either of these two things below when under El Capitan:
+
+1. Add the `--unsafe-perm` flag  when installing ios-deploy
+2. Ensure the `nobody` user has write access to `/usr/local/lib/node_modules/ios-deploy/ios-deploy`
 
 ## Usage
 
@@ -113,7 +121,7 @@ The commands below assume that you have an app called `my.app` with bundle id `b
 
 The included demo.app represents the minimum required to get code running on iOS.
 
-* `make demo.app` will generate the demo.app executable. If it doesn't compile, modify IOS_SDK_VERSION in the Makefile.
+* `make demo.app` will generate the demo.app executable. If it doesn't compile, modify `IOS_SDK_VERSION` in the Makefile.
 * `make debug` will install demo.app and launch a LLDB session.
 
 ## Notes

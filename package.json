@@ -1,8 +1,8 @@
 {
   "name": "ios-deploy",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "os" : [ "darwin" ],
-  "description": "launch iOS apps iOS devices from the command line (Xcode 6)",
+  "description": "launch iOS apps iOS devices from the command line (Xcode 7)",
   "main": "ios-deploy",
   "scripts": {
       "preinstall": "make ios-deploy"

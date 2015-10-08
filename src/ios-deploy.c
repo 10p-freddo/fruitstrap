@@ -223,14 +223,27 @@ void on_sys_error(NSString* format, ...) {
     on_error(@"%@ : %@", str, [NSString stringWithUTF8String:errstr]);
 }
 
+void __NSLogOut(NSString* format, va_list valist) {
+    NSString* str = [[[NSString alloc] initWithFormat:format arguments:valist] autorelease];
+    [[str stringByAppendingString:@"\n"] writeToFile:@"/dev/stdout" atomically:NO encoding:NSUTF8StringEncoding error:nil];
+}
+
 void NSLogOut(NSString* format, ...) {
     va_list valist;
     va_start(valist, format);
-    NSString* str = [[[NSString alloc] initWithFormat:format arguments:valist] autorelease];
+	__NSLogOut(format, valist);
     va_end(valist);
-
-    [[str stringByAppendingString:@"\n"] writeToFile:@"/dev/stdout" atomically:NO encoding:NSUTF8StringEncoding error:nil];
 }
+
+void NSLogVerbose(NSString* format, ...) {
+	if (verbose) {
+		va_list valist;
+		va_start(valist, format);
+		__NSLogOut(format, valist);
+		va_end(valist);
+	}
+}
+
 
 BOOL mkdirp(NSString* path) {
     NSError* error = nil;
@@ -468,11 +481,8 @@ CFStringRef get_device_full_name(const AMDeviceRef device) {
     device_name = AMDeviceCopyValue(device, 0, CFSTR("DeviceName")),
     model_name = get_device_hardware_name(device);
 
-    if (verbose)
-    {
-      NSLogOut(@"Device Name: %@", device_name);
-      NSLogOut(@"Model Name: %@", model_name);
-    }
+	NSLogVerbose(@"Device Name: %@", device_name);
+	NSLogVerbose(@"Model Name: %@", model_name);
 
     if(device_name != NULL && model_name != NULL)
     {
@@ -610,11 +620,9 @@ void mount_developer_image(AMDeviceRef device) {
     CFStringRef image_path = copy_developer_disk_image_path(device);
     CFStringRef sig_path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@.signature"), image_path);
 
-    if (verbose) {
-        NSLogOut(@"Device support path: %@", ds_path);
-        NSLogOut(@"Developer disk image: %@", image_path);
-    }
-    CFRelease(ds_path);
+	NSLogVerbose(@"Device support path: %@", ds_path);
+	NSLogVerbose(@"Developer disk image: %@", image_path);
+	CFRelease(ds_path);
 
     FILE* sig = fopen(CFStringGetCStringPtr(sig_path, kCFStringEncodingMacRoman), "rb");
     void *sig_buf = malloc(128);
@@ -1127,8 +1135,7 @@ void launch_debugger_and_exit(AMDeviceRef device, CFURLRef url) {
         _exit(WEXITSTATUS(status));
     } else if (pid > 0) {
         child = pid;
-        if (verbose)
-            NSLogOut(@"Waiting for child [Child: %d][Parent: %d]\n", child, parent);
+        NSLogVerbose(@"Waiting for child [Child: %d][Parent: %d]\n", child, parent);
     } else {
         on_sys_error(@"Fork failed");
     }
@@ -1559,8 +1566,7 @@ void uninstall_app(AMDeviceRef device) {
 }
 
 void handle_device(AMDeviceRef device) {
-    //if (found_device)
-    //    return; // handle one device only
+	NSLogVerbose(@"Already found device? %d", found_device);
 
     CFStringRef found_device_id = AMDeviceCopyDeviceIdentifier(device),
                 device_full_name = get_device_full_name(device),
@@ -1715,8 +1721,10 @@ void device_callback(struct am_device_notification_callback_info *info, void *ar
         case ADNCI_MSG_CONNECTED:
             if(device_id != NULL || !debug || AMDeviceGetInterfaceType(info->dev) != 2) {
                 AMDeviceNotificationUnsubscribe(*notify);
+				NSLogVerbose(@"Handling device type: %d", AMDeviceGetInterfaceType(info->dev));
 				handle_device(info->dev);
             } else if(best_device_match == NULL) {
+				NSLogVerbose(@"Best device match: %d", AMDeviceGetInterfaceType(info->dev));
                 best_device_match = info->dev;
                 CFRetain(best_device_match);
             }
@@ -1728,6 +1736,7 @@ void device_callback(struct am_device_notification_callback_info *info, void *ar
 void timeout_callback(CFRunLoopTimerRef timer, void *info) {
     if ((!found_device) && (!detect_only))  {
         if(best_device_match != NULL) {
+			NSLogVerbose(@"Handling best device match.");
             handle_device(best_device_match);
 
             CFRelease(best_device_match);
@@ -1750,11 +1759,8 @@ void timeout_callback(CFRunLoopTimerRef timer, void *info) {
           int mypid = getpid();
           if ((parent != 0) && (parent == mypid) && (child != 0))
           {
-              if (verbose)
-              {
-                  NSLogOut(@"Timeout. Killing child (%d) tree.", child);
-              }
-              kill_ptree(child, SIGHUP);
+			  NSLogVerbose(@"Timeout. Killing child (%d) tree.", child);
+			  kill_ptree(child, SIGHUP);
           }
       }
       exit(0);

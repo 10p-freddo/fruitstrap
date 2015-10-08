@@ -196,9 +196,6 @@ mach_error_t AMDeviceNotificationSubscribe(am_device_notification_callback
     dn_unknown3, struct am_device_notification **notification);
 
 
-mach_error_t AMDeviceNotificationUnsubscribe(am_device_notification subscription);
-
-
 /*  Connects to the iPhone. Pass in the am_device structure that the
  *  notification callback will give to you.
  *

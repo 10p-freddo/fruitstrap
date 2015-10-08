@@ -1720,7 +1720,6 @@ void device_callback(struct am_device_notification_callback_info *info, void *ar
     switch (info->msg) {
         case ADNCI_MSG_CONNECTED:
             if(device_id != NULL || !debug || AMDeviceGetInterfaceType(info->dev) != 2) {
-                AMDeviceNotificationUnsubscribe(*notify);
 				NSLogVerbose(@"Handling device type: %d", AMDeviceGetInterfaceType(info->dev));
 				handle_device(info->dev);
             } else if(best_device_match == NULL) {

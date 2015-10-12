@@ -4,7 +4,7 @@ var util = require('util');
 var os = require('os');
 var child_process = require('child_process');
 
-var XCODEBUILD_MIN_VERSION = '6.4';
+var XCODEBUILD_MIN_VERSION = '6.0';
 var XCODEBUILD_NOT_FOUND_MESSAGE = util.format('Please install Xcode version %s or greater from the Mac App Store.', XCODEBUILD_MIN_VERSION);
 var TOOL = 'xcodebuild';
 

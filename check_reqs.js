@@ -34,7 +34,7 @@ xcode_version.on('close', function (code) {
 		}
 
 		if (ver < XCODEBUILD_MIN_VERSION) {
-		    console.log(util.format('%s : %s. (you have version %s)', tool, XCODEBUILD_NOT_FOUND_MESSAGE, ver));
+		    console.log(util.format('%s : %s. (you have version %s)', TOOL, XCODEBUILD_NOT_FOUND_MESSAGE, ver));
 		}
 	}
 	process.exit(code);

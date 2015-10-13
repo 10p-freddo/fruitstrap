@@ -7,7 +7,6 @@
   "description": "launch iOS apps iOS devices from the command line (Xcode 7)",
   "main": "ios-deploy",
   "scripts": {
-    "preinstall": "./src/check_reqs.js && xcodebuild"
   },
   "bin": "./build/Release/ios-deploy",
   "repository": {
@@ -18,8 +17,9 @@
   	"jshint": "2.5.8"
   },
   "scripts": {
-  	"test": "npm run jshint",
-	"jshint": "node node_modules/jshint/bin/jshint src"
+    "preinstall": "./src/check_reqs.js && xcodebuild",
+    "test": "npm run jshint",
+    "jshint": "node node_modules/jshint/bin/jshint src"
   },
   "keywords": [
     "ios-deploy",

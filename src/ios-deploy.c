@@ -157,7 +157,7 @@ int AMDeviceMountImage(AMDeviceRef device, CFStringRef image, CFDictionaryRef op
 mach_error_t AMDeviceLookupApplications(AMDeviceRef device, CFDictionaryRef options, CFDictionaryRef *result);
 int AMDeviceGetInterfaceType(struct am_device *device);
 
-bool found_device = false, debug = false, verbose = false, unbuffered = false, nostart = false, detect_only = false, install = true, uninstall = false;
+bool found_device = false, debug = false, verbose = false, unbuffered = false, nostart = false, detect_only = false, install = true, uninstall = false, no_wifi = false;
 bool command_only = false;
 char *command = NULL;
 char *target_filename = NULL;
@@ -1720,8 +1720,15 @@ void device_callback(struct am_device_notification_callback_info *info, void *ar
     switch (info->msg) {
         case ADNCI_MSG_CONNECTED:
             if(device_id != NULL || !debug || AMDeviceGetInterfaceType(info->dev) != 2) {
-				NSLogVerbose(@"Handling device type: %d", AMDeviceGetInterfaceType(info->dev));
-				handle_device(info->dev);
+				if (no_wifi && AMDeviceGetInterfaceType(info->dev) == 2)
+				{
+				    NSLogVerbose(@"Skipping wifi device (type: %d)", AMDeviceGetInterfaceType(info->dev));
+				}
+				else
+				{
+				    NSLogVerbose(@"Handling device type: %d", AMDeviceGetInterfaceType(info->dev));
+				    handle_device(info->dev);
+				}
             } else if(best_device_match == NULL) {
 				NSLogVerbose(@"Best device match: %d", AMDeviceGetInterfaceType(info->dev));
                 best_device_match = info->dev;
@@ -1793,7 +1800,8 @@ void usage(const char* app) {
         @"  -R, --rm <path>              remove file or directory on device (directories must be empty)\n"
         @"  -V, --version                print the executable version \n"
         @"  -e, --exists                 check if the app with given bundle_id is installed or not \n"
-        @"  -B, --list_bundle_id         list bundle_id \n",
+        @"  -B, --list_bundle_id         list bundle_id \n"
+        @"  -W, --no-wifi                ignore wifi devices\n",
         [NSString stringWithUTF8String:app]);
 }
 
@@ -1835,11 +1843,12 @@ int main(int argc, char *argv[]) {
         { "rm", required_argument, NULL, 'R'},
         { "exists", no_argument, NULL, 'e'},
         { "list_bundle_id", no_argument, NULL, 'B'},
+        { "no-wifi", no_argument, NULL, 'W'},
         { NULL, 0, NULL, 0 },
     };
     char ch;
 
-    while ((ch = getopt_long(argc, argv, "VmcdvunrILeD:R:i:b:a:t:g:x:p:1:2:o:l::w::9::B::", longopts, NULL)) != -1)
+    while ((ch = getopt_long(argc, argv, "VmcdvunrILeD:R:i:b:a:t:g:x:p:1:2:o:l::w::9::B::W", longopts, NULL)) != -1)
     {
         switch (ch) {
         case 'm':
@@ -1934,6 +1943,9 @@ int main(int argc, char *argv[]) {
         case 'B':
             command_only = true;
             command = "list_bundle_id";
+            break;
+        case 'W':
+            no_wifi = true;
             break;
         default:
             usage(argv[0]);

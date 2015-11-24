@@ -51,31 +51,32 @@ If you are *not* using a node version manager like [nvm](https://github.com/crea
 ## Usage
 
     Usage: ios-deploy [OPTION]...
-      -d, --debug                  launch the app in GDB after installation
-      -i, --id <device_id>         the id of the device to connect to
-      -c, --detect                 only detect if the device is connected
-      -b, --bundle <bundle.app>    the path to the app bundle to be installed
-      -a, --args <args>            command line arguments to pass to the app when launching it
-      -t, --timeout <timeout>      number of seconds to wait for a device to be connected
-      -u, --unbuffered             don't buffer stdout
-      -n, --nostart                do not start the app when debugging
-      -I, --noninteractive         start in non interactive mode (quit when app crashes or exits)
-      -L, --justlaunch             just launch the app and exit lldb
-      -v, --verbose                enable verbose output
-      -m, --noinstall              directly start debugging without app install (-d not required)
-      -p, --port <number>          port used for device, default: 12345
-      -r, --uninstall              uninstall the app before install (do not use with -m; app cache and data are cleared)
-      -9, --uninstall_only         uninstall the app ONLY. Use only with -1 <bundle_id> 
-      -1, --bundle_id <bundle id>  specify bundle id for list, upload, and uninstall_only
-      -l, --list                   list files
-      -o, --upload <file>          upload file
-      -w, --download               download app tree
-      -2, --to <target pathname>   use together with up/download file/tree. specify target
-      -D, --mkdir <dir>            make directory on device
-      -R, --rm <path>              remove file or directory on device (directories must be empty)
-      -V, --version                print the executable version
-      -e, --exists                 check if the app with given bundle_id is installed or not
-      -B, --list_bundle_id         list bundle_id
+        -d, --debug                  launch the app in lldb after installation
+        -i, --id <device_id>         the id of the device to connect to
+        -c, --detect                 only detect if the device is connected
+        -b, --bundle <bundle.app>    the path to the app bundle to be installed
+        -a, --args <args>            command line arguments to pass to the app when launching it
+        -t, --timeout <timeout>      number of seconds to wait for a device to be connected
+        -u, --unbuffered             don't buffer stdout
+        -n, --nostart                do not start the app when debugging
+        -I, --noninteractive         start in non interactive mode (quit when app crashes or exits)
+        -L, --justlaunch             just launch the app and exit lldb
+        -v, --verbose                enable verbose output
+        -m, --noinstall              directly start debugging without app install (-d not required)
+        -p, --port <number>          port used for device, default: dynamic
+        -r, --uninstall              uninstall the app before install (do not use with -m; app cache and data are cleared) 
+        -9, --uninstall_only         uninstall the app ONLY. Use only with -1 <bundle_id> 
+        -1, --bundle_id <bundle id>  specify bundle id for list and upload
+        -l, --list                   list files
+        -o, --upload <file>          upload file
+        -w, --download               download app tree
+        -2, --to <target pathname>   use together with up/download file/tree. specify target
+        -D, --mkdir <dir>            make directory on device
+        -R, --rm <path>              remove file or directory on device (directories must be empty)
+        -V, --version                print the executable version 
+        -e, --exists                 check if the app with given bundle_id is installed or not 
+        -B, --list_bundle_id         list bundle_id 
+        -W, --no-wifi                ignore wifi devices
 
 ## Examples
 
@@ -83,6 +84,9 @@ The commands below assume that you have an app called `my.app` with bundle id `b
 
     // deploy and debug your app to a connected device
     ios-deploy --debug --bundle my.app
+
+    // deploy and debug your app to a connected device, skipping any wi-fi connection (use USB)
+    ios-deploy --debug --bundle my.app --no-wifi
 
     // deploy and launch your app to a connected device, but quit the debugger after
     ios-deploy --justlaunch --debug --bundle my.app

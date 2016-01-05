@@ -45,8 +45,9 @@ This will build `ios-deploy` into the `build/Release` folder.
 
 If you are *not* using a node version manager like [nvm](https://github.com/creationix/nvm) or [n](https://github.com/tj/n), you may have to do either of these two things below when under El Capitan:
 
-1. Add the `--unsafe-perm` flag  when installing ios-deploy
-2. Ensure the `nobody` user has write access to `/usr/local/lib/node_modules/ios-deploy/ios-deploy`
+1. Add the `--unsafe-perm=true` flag  when installing ios-deploy
+2. Add the `--allow-root` flag  when installing ios-deploy
+3. Ensure the `nobody` user has write access to `/usr/local/lib/node_modules/ios-deploy/ios-deploy`
 
 ## Usage
 

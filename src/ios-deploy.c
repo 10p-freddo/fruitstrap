@@ -18,7 +18,7 @@
 #include "MobileDevice.h"
 #include "errors.h"
 
-#define APP_VERSION    @"1.8.3"
+#define APP_VERSION    @"1.8.4"
 #define PREP_CMDS_PATH @"/tmp/%@/fruitstrap-lldb-prep-cmds-"
 #define LLDB_SHELL @"lldb -s %@"
 /*

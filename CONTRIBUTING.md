@@ -23,6 +23,8 @@ Please run the commands below in your Terminal.app and include it in the issue:
 ```
 Also include **command line arguments** you used for ios-deploy.
 
+Don't forget to check out the [El Capitan](https://github.com/phonegap/ios-deploy/blob/master/README.md#os-x-1011-el-capitan) section of the [README](https://github.com/phonegap/ios-deploy/blob/master/README.md) before filing that issue!
+
 
 ## Sending a Pull Request
 

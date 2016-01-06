@@ -1476,7 +1476,7 @@ void upload_file(AMDeviceRef device) {
 
     if (!file_content)
     {
-        on_error(@"Could not open file: %@", upload_pathname);
+        on_error(@"Could not open file: %@", [NSString stringWithUTF8String:upload_pathname]);
     }
 
     // Make sure the directory was created
@@ -1547,7 +1547,7 @@ void uninstall_app(AMDeviceRef device) {
     }
 
     if (cf_uninstall_bundle_id == NULL) {
-        on_error(@"Error: Unable to get bundle id from user command or package %@.\nUninstall failed.", app_path);
+        on_error(@"Error: Unable to get bundle id from user command or package %@.\nUninstall failed.", [NSString stringWithUTF8String:app_path]);
     } else {
         AMDeviceConnect(device);
         assert(AMDeviceIsPaired(device));
@@ -1636,7 +1636,7 @@ void handle_device(AMDeviceRef device) {
         }
 
         if (cf_uninstall_bundle_id == NULL) {
-            on_error(@"Error: Unable to get bundle id from user command or package %@.\nUninstall failed.", app_path);
+            on_error(@"Error: Unable to get bundle id from user command or package %@.\nUninstall failed.", [NSString stringWithUTF8String:app_path]);
         } else {
             AMDeviceConnect(device);
             assert(AMDeviceIsPaired(device));

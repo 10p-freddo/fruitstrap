@@ -1266,7 +1266,7 @@ service_conn_t start_house_arrest_service(AMDeviceRef device) {
     CFStringRef cf_bundle_id = CFStringCreateWithCString(NULL, bundle_id, kCFStringEncodingUTF8);
     if (AMDeviceStartHouseArrestService(device, cf_bundle_id, 0, &houseFd, 0) != 0)
     {
-        on_error(@"Unable to find bundle with id: %@", bundle_id);
+        on_error(@"Unable to find bundle with id: %@", [NSString stringWithUTF8String:bundle_id]);
     }
 
     check_error(AMDeviceStopSession(device));

@@ -25,6 +25,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		7E1C00CC1C3C93AF00D686B5 /* version.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = version.h; path = src/version.h; sourceTree = SOURCE_ROOT; };
 		7E70898E1B587BF3004D23AA /* ios-deploy */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "ios-deploy"; sourceTree = BUILT_PRODUCTS_DIR; };
 		7E7089991B587DE4004D23AA /* ios-deploy.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "ios-deploy.c"; path = "src/ios-deploy.c"; sourceTree = SOURCE_ROOT; };
 		7E70899A1B587DE4004D23AA /* errors.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = errors.h; path = src/errors.h; sourceTree = SOURCE_ROOT; };
@@ -66,6 +67,7 @@
 		7E7089901B587BF3004D23AA /* ios-deploy */ = {
 			isa = PBXGroup;
 			children = (
+				7E1C00CC1C3C93AF00D686B5 /* version.h */,
 				7E7089991B587DE4004D23AA /* ios-deploy.c */,
 				7E70899A1B587DE4004D23AA /* errors.h */,
 				7E70899B1B587DE4004D23AA /* MobileDevice.h */,

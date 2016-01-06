@@ -26,6 +26,8 @@
 
 /* Begin PBXFileReference section */
 		7E1C00CC1C3C93AF00D686B5 /* version.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = version.h; path = src/version.h; sourceTree = SOURCE_ROOT; };
+		7E1C00CF1C3C9ABB00D686B5 /* lldb.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = lldb.py; path = src/scripts/lldb.py; sourceTree = SOURCE_ROOT; };
+		7E1C00D11C3C9CB000D686B5 /* lldb.py.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = lldb.py.h; path = src/lldb.py.h; sourceTree = SOURCE_ROOT; };
 		7E70898E1B587BF3004D23AA /* ios-deploy */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "ios-deploy"; sourceTree = BUILT_PRODUCTS_DIR; };
 		7E7089991B587DE4004D23AA /* ios-deploy.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "ios-deploy.c"; path = "src/ios-deploy.c"; sourceTree = SOURCE_ROOT; };
 		7E70899A1B587DE4004D23AA /* errors.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = errors.h; path = src/errors.h; sourceTree = SOURCE_ROOT; };
@@ -47,6 +49,14 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		7E1C00CE1C3C9A7700D686B5 /* scripts */ = {
+			isa = PBXGroup;
+			children = (
+				7E1C00CF1C3C9ABB00D686B5 /* lldb.py */,
+			);
+			name = scripts;
+			sourceTree = "<group>";
+		};
 		7E7089851B587BF3004D23AA = {
 			isa = PBXGroup;
 			children = (
@@ -67,6 +77,8 @@
 		7E7089901B587BF3004D23AA /* ios-deploy */ = {
 			isa = PBXGroup;
 			children = (
+				7E1C00CE1C3C9A7700D686B5 /* scripts */,
+				7E1C00D11C3C9CB000D686B5 /* lldb.py.h */,
 				7E1C00CC1C3C93AF00D686B5 /* version.h */,
 				7E7089991B587DE4004D23AA /* ios-deploy.c */,
 				7E70899A1B587DE4004D23AA /* errors.h */,
@@ -91,6 +103,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 7E7089951B587BF3004D23AA /* Build configuration list for PBXNativeTarget "ios-deploy" */;
 			buildPhases = (
+				7E1C00D01C3C9C0700D686B5 /* Run Script */,
 				7E70898A1B587BF3004D23AA /* Sources */,
 				7E70898B1B587BF3004D23AA /* Frameworks */,
 				7E70898C1B587BF3004D23AA /* CopyFiles */,
@@ -135,6 +148,23 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		7E1C00D01C3C9C0700D686B5 /* Run Script */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Run Script";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "echo \"\\\"# AUTO-GENERATED - DO NOT MODIFY\\n\\\"\" > src/lldb.h\nawk '{ print \"\\\"\"$0\"\\\\n\\\"\"}' src/scripts/lldb.py >> src/lldb.py.h\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		7E70898A1B587BF3004D23AA /* Sources */ = {

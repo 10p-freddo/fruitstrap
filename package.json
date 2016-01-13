@@ -17,7 +17,7 @@
   	"jshint": "2.5.8"
   },
   "scripts": {
-    "preinstall": "./src/check_reqs.js && xcodebuild",
+    "preinstall": "./src/scripts/check_reqs.js && xcodebuild",
     "test": "npm run jshint",
     "jshint": "node node_modules/jshint/bin/jshint src"
   },

@@ -35,13 +35,13 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		7E1C00CC1C3C93AF00D686B5 /* version.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = version.h; path = src/version.h; sourceTree = SOURCE_ROOT; };
+		7E1C00CC1C3C93AF00D686B5 /* version.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = version.h; sourceTree = "<group>"; };
 		7E1C00CF1C3C9ABB00D686B5 /* lldb.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = lldb.py; path = src/scripts/lldb.py; sourceTree = SOURCE_ROOT; };
-		7E1C00D11C3C9CB000D686B5 /* lldb.py.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = lldb.py.h; path = src/lldb.py.h; sourceTree = SOURCE_ROOT; };
+		7E1C00D11C3C9CB000D686B5 /* lldb.py.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = lldb.py.h; sourceTree = "<group>"; };
 		7E70898E1B587BF3004D23AA /* ios-deploy */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "ios-deploy"; sourceTree = BUILT_PRODUCTS_DIR; };
-		7E7089991B587DE4004D23AA /* ios-deploy.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = "ios-deploy.m"; path = "src/ios-deploy.m"; sourceTree = SOURCE_ROOT; };
-		7E70899A1B587DE4004D23AA /* errors.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = errors.h; path = src/errors.h; sourceTree = SOURCE_ROOT; };
-		7E70899B1B587DE4004D23AA /* MobileDevice.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = MobileDevice.h; path = src/MobileDevice.h; sourceTree = SOURCE_ROOT; };
+		7E7089991B587DE4004D23AA /* ios-deploy.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = "ios-deploy.m"; sourceTree = "<group>"; };
+		7E70899A1B587DE4004D23AA /* errors.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = errors.h; sourceTree = "<group>"; };
+		7E70899B1B587DE4004D23AA /* MobileDevice.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MobileDevice.h; sourceTree = "<group>"; };
 		7E70899D1B587F29004D23AA /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
 		7E70899F1B58801E004D23AA /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		7E8E3A831C45D4CE0017F6C1 /* ios-deploy-tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "ios-deploy-tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -50,6 +50,7 @@
 		7E8E3A8F1C45D5380017F6C1 /* libios-deploy.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libios-deploy.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		7E8E3A911C45D5380017F6C1 /* ios_deploy_lib.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ios_deploy_lib.h; sourceTree = "<group>"; };
 		7E8E3A931C45D5380017F6C1 /* ios_deploy_lib.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ios_deploy_lib.m; sourceTree = "<group>"; };
+		7EDCC3CE1C45DFF0002F9851 /* check_reqs.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = check_reqs.js; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -84,14 +85,17 @@
 		7E1C00CE1C3C9A7700D686B5 /* scripts */ = {
 			isa = PBXGroup;
 			children = (
+				7EDCC3CE1C45DFF0002F9851 /* check_reqs.js */,
 				7E1C00CF1C3C9ABB00D686B5 /* lldb.py */,
 			);
 			name = scripts;
+			path = src/scripts;
 			sourceTree = "<group>";
 		};
 		7E7089851B587BF3004D23AA = {
 			isa = PBXGroup;
 			children = (
+				7E1C00CE1C3C9A7700D686B5 /* scripts */,
 				7E7089901B587BF3004D23AA /* ios-deploy */,
 				7E8E3A841C45D4CE0017F6C1 /* ios-deploy-tests */,
 				7E8E3A901C45D5380017F6C1 /* ios-deploy-lib */,
@@ -113,14 +117,14 @@
 		7E7089901B587BF3004D23AA /* ios-deploy */ = {
 			isa = PBXGroup;
 			children = (
-				7E1C00CE1C3C9A7700D686B5 /* scripts */,
 				7E1C00D11C3C9CB000D686B5 /* lldb.py.h */,
 				7E1C00CC1C3C93AF00D686B5 /* version.h */,
 				7E7089991B587DE4004D23AA /* ios-deploy.m */,
 				7E70899A1B587DE4004D23AA /* errors.h */,
 				7E70899B1B587DE4004D23AA /* MobileDevice.h */,
 			);
-			path = "ios-deploy";
+			name = "ios-deploy";
+			path = "src/ios-deploy";
 			sourceTree = "<group>";
 		};
 		7E7089A21B588219004D23AA /* Frameworks */ = {
@@ -138,7 +142,8 @@
 				7E8E3A851C45D4CE0017F6C1 /* ios_deploy_tests.m */,
 				7E8E3A871C45D4CE0017F6C1 /* Info.plist */,
 			);
-			path = "ios-deploy-tests";
+			name = "ios-deploy-tests";
+			path = "src/ios-deploy-tests";
 			sourceTree = "<group>";
 		};
 		7E8E3A901C45D5380017F6C1 /* ios-deploy-lib */ = {
@@ -147,7 +152,8 @@
 				7E8E3A911C45D5380017F6C1 /* ios_deploy_lib.h */,
 				7E8E3A931C45D5380017F6C1 /* ios_deploy_lib.m */,
 			);
-			path = "ios-deploy-lib";
+			name = "ios-deploy-lib";
+			path = "src/ios-deploy-lib";
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -168,6 +174,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 7E7089951B587BF3004D23AA /* Build configuration list for PBXNativeTarget "ios-deploy" */;
 			buildPhases = (
+				7EDCC3CF1C45E03B002F9851 /* ShellScript */,
 				7E70898B1B587BF3004D23AA /* Frameworks */,
 				7EDCC3CC1C45DC89002F9851 /* Sources */,
 			);
@@ -203,7 +210,6 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 7E8E3A951C45D5380017F6C1 /* Build configuration list for PBXNativeTarget "ios-deploy-lib" */;
 			buildPhases = (
-				7E8E3A981C45D5610017F6C1 /* ShellScript */,
 				7E8E3A8B1C45D5380017F6C1 /* Sources */,
 				7E8E3A8C1C45D5380017F6C1 /* Frameworks */,
 				7E8E3A8D1C45D5380017F6C1 /* Headers */,
@@ -268,7 +274,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		7E8E3A981C45D5610017F6C1 /* ShellScript */ = {
+		7EDCC3CF1C45E03B002F9851 /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -279,7 +285,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "echo \"\\\"# AUTO-GENERATED - DO NOT MODIFY\\n\\\"\" > src/lldb.py.h\nawk '{ print \"\\\"\"$0\"\\\\n\\\"\"}' src/scripts/lldb.py >> src/lldb.py.h\n";
+			shellScript = "echo \"\\\"# AUTO-GENERATED - DO NOT MODIFY\\n\\\"\" > src/ios-deploy/lldb.py.h\nawk '{ print \"\\\"\"$0\"\\\\n\\\"\"}' src/scripts/lldb.py >> src/ios-deploy/lldb.py.h";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -431,7 +437,7 @@
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "-";
 				COMBINE_HIDPI_IMAGES = YES;
-				INFOPLIST_FILE = "ios-deploy-tests/Info.plist";
+				INFOPLIST_FILE = "src/ios-deploy-tests/Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 10.11;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.phonegap.ios-deploy-tests";
@@ -444,7 +450,7 @@
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "-";
 				COMBINE_HIDPI_IMAGES = YES;
-				INFOPLIST_FILE = "ios-deploy-tests/Info.plist";
+				INFOPLIST_FILE = "src/ios-deploy-tests/Info.plist";
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 10.11;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.phonegap.ios-deploy-tests";

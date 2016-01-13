@@ -40,6 +40,13 @@ xcodebuild
 
 This will build `ios-deploy` into the `build/Release` folder.
 
+## Testing
+
+Run:
+
+```
+npm install && npm test
+```
 
 ### OS X 10.11 El Capitan
 

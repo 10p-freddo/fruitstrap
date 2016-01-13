@@ -1,4 +1,4 @@
-#import "ios_deploy_lib.h"
+#import "libios_deploy.h"
 
 @implementation ios_deploy_lib
 

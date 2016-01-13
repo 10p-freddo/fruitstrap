@@ -10,8 +10,8 @@
 		7E70899E1B587F29004D23AA /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7E70899D1B587F29004D23AA /* CoreFoundation.framework */; };
 		7E7089A01B58801E004D23AA /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7E70899F1B58801E004D23AA /* Foundation.framework */; };
 		7E8E3A861C45D4CE0017F6C1 /* ios_deploy_tests.m in Sources */ = {isa = PBXBuildFile; fileRef = 7E8E3A851C45D4CE0017F6C1 /* ios_deploy_tests.m */; };
-		7E8E3A921C45D5380017F6C1 /* ios_deploy_lib.h in Headers */ = {isa = PBXBuildFile; fileRef = 7E8E3A911C45D5380017F6C1 /* ios_deploy_lib.h */; };
-		7E8E3A941C45D5380017F6C1 /* ios_deploy_lib.m in Sources */ = {isa = PBXBuildFile; fileRef = 7E8E3A931C45D5380017F6C1 /* ios_deploy_lib.m */; settings = {COMPILER_FLAGS = "-fno-objc-arc"; }; };
+		7E8E3A921C45D5380017F6C1 /* libios_deploy.h in Headers */ = {isa = PBXBuildFile; fileRef = 7E8E3A911C45D5380017F6C1 /* libios_deploy.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		7E8E3A941C45D5380017F6C1 /* libios_deploy.m in Sources */ = {isa = PBXBuildFile; fileRef = 7E8E3A931C45D5380017F6C1 /* libios_deploy.m */; settings = {COMPILER_FLAGS = "-fno-objc-arc"; }; };
 		7E8E3A9B1C45D5970017F6C1 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7E70899F1B58801E004D23AA /* Foundation.framework */; };
 		7E8E3A9D1C45D6290017F6C1 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7E70899D1B587F29004D23AA /* CoreFoundation.framework */; };
 		7EDCC3CD1C45DC94002F9851 /* ios-deploy.m in Sources */ = {isa = PBXBuildFile; fileRef = 7E7089991B587DE4004D23AA /* ios-deploy.m */; settings = {COMPILER_FLAGS = "-fno-objc-arc"; }; };
@@ -48,8 +48,8 @@
 		7E8E3A851C45D4CE0017F6C1 /* ios_deploy_tests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ios_deploy_tests.m; sourceTree = "<group>"; };
 		7E8E3A871C45D4CE0017F6C1 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		7E8E3A8F1C45D5380017F6C1 /* libios-deploy.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libios-deploy.a"; sourceTree = BUILT_PRODUCTS_DIR; };
-		7E8E3A911C45D5380017F6C1 /* ios_deploy_lib.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ios_deploy_lib.h; sourceTree = "<group>"; };
-		7E8E3A931C45D5380017F6C1 /* ios_deploy_lib.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ios_deploy_lib.m; sourceTree = "<group>"; };
+		7E8E3A911C45D5380017F6C1 /* libios_deploy.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = libios_deploy.h; sourceTree = "<group>"; };
+		7E8E3A931C45D5380017F6C1 /* libios_deploy.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = libios_deploy.m; sourceTree = "<group>"; };
 		7EDCC3CE1C45DFF0002F9851 /* check_reqs.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; path = check_reqs.js; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -149,8 +149,8 @@
 		7E8E3A901C45D5380017F6C1 /* ios-deploy-lib */ = {
 			isa = PBXGroup;
 			children = (
-				7E8E3A911C45D5380017F6C1 /* ios_deploy_lib.h */,
-				7E8E3A931C45D5380017F6C1 /* ios_deploy_lib.m */,
+				7E8E3A911C45D5380017F6C1 /* libios_deploy.h */,
+				7E8E3A931C45D5380017F6C1 /* libios_deploy.m */,
 			);
 			name = "ios-deploy-lib";
 			path = "src/ios-deploy-lib";
@@ -163,7 +163,7 @@
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				7E8E3A921C45D5380017F6C1 /* ios_deploy_lib.h in Headers */,
+				7E8E3A921C45D5380017F6C1 /* libios_deploy.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -302,7 +302,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				7E8E3A941C45D5380017F6C1 /* ios_deploy_lib.m in Sources */,
+				7E8E3A941C45D5380017F6C1 /* libios_deploy.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -463,6 +463,7 @@
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "-";
 				EXECUTABLE_PREFIX = lib;
+				INSTALL_PATH = "";
 				MACOSX_DEPLOYMENT_TARGET = 10.11;
 				OTHER_LDFLAGS = (
 					"-framework",
@@ -470,6 +471,7 @@
 					"-F/System/Library/PrivateFrameworks",
 				);
 				PRODUCT_NAME = "ios-deploy";
+				PUBLIC_HEADERS_FOLDER_PATH = "";
 			};
 			name = Debug;
 		};
@@ -478,6 +480,7 @@
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "-";
 				EXECUTABLE_PREFIX = lib;
+				INSTALL_PATH = "";
 				MACOSX_DEPLOYMENT_TARGET = 10.11;
 				OTHER_LDFLAGS = (
 					"-framework",
@@ -485,6 +488,7 @@
 					"-F/System/Library/PrivateFrameworks",
 				);
 				PRODUCT_NAME = "ios-deploy";
+				PUBLIC_HEADERS_FOLDER_PATH = "";
 			};
 			name = Release;
 		};

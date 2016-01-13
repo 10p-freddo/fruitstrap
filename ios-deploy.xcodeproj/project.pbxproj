@@ -7,33 +7,49 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		7E70899C1B587DE4004D23AA /* ios-deploy.c in Sources */ = {isa = PBXBuildFile; fileRef = 7E7089991B587DE4004D23AA /* ios-deploy.c */; settings = {COMPILER_FLAGS = "-x objective-c -fno-objc-arc"; }; };
 		7E70899E1B587F29004D23AA /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7E70899D1B587F29004D23AA /* CoreFoundation.framework */; };
 		7E7089A01B58801E004D23AA /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7E70899F1B58801E004D23AA /* Foundation.framework */; };
+		7E8E3A861C45D4CE0017F6C1 /* ios_deploy_tests.m in Sources */ = {isa = PBXBuildFile; fileRef = 7E8E3A851C45D4CE0017F6C1 /* ios_deploy_tests.m */; };
+		7E8E3A921C45D5380017F6C1 /* ios_deploy_lib.h in Headers */ = {isa = PBXBuildFile; fileRef = 7E8E3A911C45D5380017F6C1 /* ios_deploy_lib.h */; };
+		7E8E3A941C45D5380017F6C1 /* ios_deploy_lib.m in Sources */ = {isa = PBXBuildFile; fileRef = 7E8E3A931C45D5380017F6C1 /* ios_deploy_lib.m */; settings = {COMPILER_FLAGS = "-fno-objc-arc"; }; };
+		7E8E3A9B1C45D5970017F6C1 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7E70899F1B58801E004D23AA /* Foundation.framework */; };
+		7E8E3A9D1C45D6290017F6C1 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7E70899D1B587F29004D23AA /* CoreFoundation.framework */; };
+		7EDCC3CD1C45DC94002F9851 /* ios-deploy.m in Sources */ = {isa = PBXBuildFile; fileRef = 7E7089991B587DE4004D23AA /* ios-deploy.m */; settings = {COMPILER_FLAGS = "-fno-objc-arc"; }; };
 /* End PBXBuildFile section */
 
-/* Begin PBXCopyFilesBuildPhase section */
-		7E70898C1B587BF3004D23AA /* CopyFiles */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = /usr/share/man/man1/;
-			dstSubfolderSpec = 0;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 1;
+/* Begin PBXContainerItemProxy section */
+		7E8E3A991C45D5850017F6C1 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 7E7089861B587BF3004D23AA /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7E8E3A8E1C45D5380017F6C1;
+			remoteInfo = "ios-deploy-lib";
 		};
-/* End PBXCopyFilesBuildPhase section */
+		7EDCC3CA1C45D933002F9851 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 7E7089861B587BF3004D23AA /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7E8E3A8E1C45D5380017F6C1;
+			remoteInfo = "ios-deploy-lib";
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		7E1C00CC1C3C93AF00D686B5 /* version.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = version.h; path = src/version.h; sourceTree = SOURCE_ROOT; };
 		7E1C00CF1C3C9ABB00D686B5 /* lldb.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = lldb.py; path = src/scripts/lldb.py; sourceTree = SOURCE_ROOT; };
 		7E1C00D11C3C9CB000D686B5 /* lldb.py.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = lldb.py.h; path = src/lldb.py.h; sourceTree = SOURCE_ROOT; };
 		7E70898E1B587BF3004D23AA /* ios-deploy */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "ios-deploy"; sourceTree = BUILT_PRODUCTS_DIR; };
-		7E7089991B587DE4004D23AA /* ios-deploy.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "ios-deploy.c"; path = "src/ios-deploy.c"; sourceTree = SOURCE_ROOT; };
+		7E7089991B587DE4004D23AA /* ios-deploy.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = "ios-deploy.m"; path = "src/ios-deploy.m"; sourceTree = SOURCE_ROOT; };
 		7E70899A1B587DE4004D23AA /* errors.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = errors.h; path = src/errors.h; sourceTree = SOURCE_ROOT; };
 		7E70899B1B587DE4004D23AA /* MobileDevice.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = MobileDevice.h; path = src/MobileDevice.h; sourceTree = SOURCE_ROOT; };
 		7E70899D1B587F29004D23AA /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
 		7E70899F1B58801E004D23AA /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
+		7E8E3A831C45D4CE0017F6C1 /* ios-deploy-tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "ios-deploy-tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		7E8E3A851C45D4CE0017F6C1 /* ios_deploy_tests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ios_deploy_tests.m; sourceTree = "<group>"; };
+		7E8E3A871C45D4CE0017F6C1 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		7E8E3A8F1C45D5380017F6C1 /* libios-deploy.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libios-deploy.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		7E8E3A911C45D5380017F6C1 /* ios_deploy_lib.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ios_deploy_lib.h; sourceTree = "<group>"; };
+		7E8E3A931C45D5380017F6C1 /* ios_deploy_lib.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ios_deploy_lib.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -43,6 +59,22 @@
 			files = (
 				7E7089A01B58801E004D23AA /* Foundation.framework in Frameworks */,
 				7E70899E1B587F29004D23AA /* CoreFoundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7E8E3A801C45D4CE0017F6C1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7E8E3A8C1C45D5380017F6C1 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7E8E3A9D1C45D6290017F6C1 /* CoreFoundation.framework in Frameworks */,
+				7E8E3A9B1C45D5970017F6C1 /* Foundation.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -61,6 +93,8 @@
 			isa = PBXGroup;
 			children = (
 				7E7089901B587BF3004D23AA /* ios-deploy */,
+				7E8E3A841C45D4CE0017F6C1 /* ios-deploy-tests */,
+				7E8E3A901C45D5380017F6C1 /* ios-deploy-lib */,
 				7E7089A21B588219004D23AA /* Frameworks */,
 				7E70898F1B587BF3004D23AA /* Products */,
 			);
@@ -70,6 +104,8 @@
 			isa = PBXGroup;
 			children = (
 				7E70898E1B587BF3004D23AA /* ios-deploy */,
+				7E8E3A831C45D4CE0017F6C1 /* ios-deploy-tests.xctest */,
+				7E8E3A8F1C45D5380017F6C1 /* libios-deploy.a */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -80,7 +116,7 @@
 				7E1C00CE1C3C9A7700D686B5 /* scripts */,
 				7E1C00D11C3C9CB000D686B5 /* lldb.py.h */,
 				7E1C00CC1C3C93AF00D686B5 /* version.h */,
-				7E7089991B587DE4004D23AA /* ios-deploy.c */,
+				7E7089991B587DE4004D23AA /* ios-deploy.m */,
 				7E70899A1B587DE4004D23AA /* errors.h */,
 				7E70899B1B587DE4004D23AA /* MobileDevice.h */,
 			);
@@ -96,26 +132,90 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
+		7E8E3A841C45D4CE0017F6C1 /* ios-deploy-tests */ = {
+			isa = PBXGroup;
+			children = (
+				7E8E3A851C45D4CE0017F6C1 /* ios_deploy_tests.m */,
+				7E8E3A871C45D4CE0017F6C1 /* Info.plist */,
+			);
+			path = "ios-deploy-tests";
+			sourceTree = "<group>";
+		};
+		7E8E3A901C45D5380017F6C1 /* ios-deploy-lib */ = {
+			isa = PBXGroup;
+			children = (
+				7E8E3A911C45D5380017F6C1 /* ios_deploy_lib.h */,
+				7E8E3A931C45D5380017F6C1 /* ios_deploy_lib.m */,
+			);
+			path = "ios-deploy-lib";
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
+
+/* Begin PBXHeadersBuildPhase section */
+		7E8E3A8D1C45D5380017F6C1 /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7E8E3A921C45D5380017F6C1 /* ios_deploy_lib.h in Headers */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
 
 /* Begin PBXNativeTarget section */
 		7E70898D1B587BF3004D23AA /* ios-deploy */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 7E7089951B587BF3004D23AA /* Build configuration list for PBXNativeTarget "ios-deploy" */;
 			buildPhases = (
-				7E1C00D01C3C9C0700D686B5 /* Run Script */,
-				7E70898A1B587BF3004D23AA /* Sources */,
 				7E70898B1B587BF3004D23AA /* Frameworks */,
-				7E70898C1B587BF3004D23AA /* CopyFiles */,
+				7EDCC3CC1C45DC89002F9851 /* Sources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				7E8E3A9A1C45D5850017F6C1 /* PBXTargetDependency */,
 			);
 			name = "ios-deploy";
 			productName = "ios-deploy";
 			productReference = 7E70898E1B587BF3004D23AA /* ios-deploy */;
 			productType = "com.apple.product-type.tool";
+		};
+		7E8E3A821C45D4CE0017F6C1 /* ios-deploy-tests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7E8E3A8A1C45D4CE0017F6C1 /* Build configuration list for PBXNativeTarget "ios-deploy-tests" */;
+			buildPhases = (
+				7E8E3A7F1C45D4CE0017F6C1 /* Sources */,
+				7E8E3A801C45D4CE0017F6C1 /* Frameworks */,
+				7E8E3A811C45D4CE0017F6C1 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				7EDCC3CB1C45D933002F9851 /* PBXTargetDependency */,
+			);
+			name = "ios-deploy-tests";
+			productName = "ios-deploy-tests";
+			productReference = 7E8E3A831C45D4CE0017F6C1 /* ios-deploy-tests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		7E8E3A8E1C45D5380017F6C1 /* ios-deploy-lib */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7E8E3A951C45D5380017F6C1 /* Build configuration list for PBXNativeTarget "ios-deploy-lib" */;
+			buildPhases = (
+				7E8E3A981C45D5610017F6C1 /* ShellScript */,
+				7E8E3A8B1C45D5380017F6C1 /* Sources */,
+				7E8E3A8C1C45D5380017F6C1 /* Frameworks */,
+				7E8E3A8D1C45D5380017F6C1 /* Headers */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "ios-deploy-lib";
+			productName = "ios-deploy-lib";
+			productReference = 7E8E3A8F1C45D5380017F6C1 /* libios-deploy.a */;
+			productType = "com.apple.product-type.library.static";
 		};
 /* End PBXNativeTarget section */
 
@@ -128,6 +228,12 @@
 				TargetAttributes = {
 					7E70898D1B587BF3004D23AA = {
 						CreatedOnToolsVersion = 6.4;
+					};
+					7E8E3A821C45D4CE0017F6C1 = {
+						CreatedOnToolsVersion = 7.2;
+					};
+					7E8E3A8E1C45D5380017F6C1 = {
+						CreatedOnToolsVersion = 7.2;
 					};
 				};
 			};
@@ -145,19 +251,30 @@
 			projectRoot = "";
 			targets = (
 				7E70898D1B587BF3004D23AA /* ios-deploy */,
+				7E8E3A821C45D4CE0017F6C1 /* ios-deploy-tests */,
+				7E8E3A8E1C45D5380017F6C1 /* ios-deploy-lib */,
 			);
 		};
 /* End PBXProject section */
 
+/* Begin PBXResourcesBuildPhase section */
+		7E8E3A811C45D4CE0017F6C1 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
 /* Begin PBXShellScriptBuildPhase section */
-		7E1C00D01C3C9C0700D686B5 /* Run Script */ = {
+		7E8E3A981C45D5610017F6C1 /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			inputPaths = (
 			);
-			name = "Run Script";
 			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -167,15 +284,44 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		7E70898A1B587BF3004D23AA /* Sources */ = {
+		7E8E3A7F1C45D4CE0017F6C1 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				7E70899C1B587DE4004D23AA /* ios-deploy.c in Sources */,
+				7E8E3A861C45D4CE0017F6C1 /* ios_deploy_tests.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7E8E3A8B1C45D5380017F6C1 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7E8E3A941C45D5380017F6C1 /* ios_deploy_lib.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7EDCC3CC1C45DC89002F9851 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7EDCC3CD1C45DC94002F9851 /* ios-deploy.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		7E8E3A9A1C45D5850017F6C1 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 7E8E3A8E1C45D5380017F6C1 /* ios-deploy-lib */;
+			targetProxy = 7E8E3A991C45D5850017F6C1 /* PBXContainerItemProxy */;
+		};
+		7EDCC3CB1C45D933002F9851 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 7E8E3A8E1C45D5380017F6C1 /* ios-deploy-lib */;
+			targetProxy = 7EDCC3CA1C45D933002F9851 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		7E7089931B587BF3004D23AA /* Debug */ = {
@@ -280,6 +426,62 @@
 			};
 			name = Release;
 		};
+		7E8E3A881C45D4CE0017F6C1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = "ios-deploy-tests/Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 10.11;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.phonegap.ios-deploy-tests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		7E8E3A891C45D4CE0017F6C1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = "ios-deploy-tests/Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks @loader_path/../Frameworks";
+				MACOSX_DEPLOYMENT_TARGET = 10.11;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.phonegap.ios-deploy-tests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+		7E8E3A961C45D5380017F6C1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				EXECUTABLE_PREFIX = lib;
+				MACOSX_DEPLOYMENT_TARGET = 10.11;
+				OTHER_LDFLAGS = (
+					"-framework",
+					MobileDevice,
+					"-F/System/Library/PrivateFrameworks",
+				);
+				PRODUCT_NAME = "ios-deploy";
+			};
+			name = Debug;
+		};
+		7E8E3A971C45D5380017F6C1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				EXECUTABLE_PREFIX = lib;
+				MACOSX_DEPLOYMENT_TARGET = 10.11;
+				OTHER_LDFLAGS = (
+					"-framework",
+					MobileDevice,
+					"-F/System/Library/PrivateFrameworks",
+				);
+				PRODUCT_NAME = "ios-deploy";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -297,6 +499,24 @@
 			buildConfigurations = (
 				7E7089961B587BF3004D23AA /* Debug */,
 				7E7089971B587BF3004D23AA /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		7E8E3A8A1C45D4CE0017F6C1 /* Build configuration list for PBXNativeTarget "ios-deploy-tests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7E8E3A881C45D4CE0017F6C1 /* Debug */,
+				7E8E3A891C45D4CE0017F6C1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		7E8E3A951C45D5380017F6C1 /* Build configuration list for PBXNativeTarget "ios-deploy-lib" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7E8E3A961C45D5380017F6C1 /* Debug */,
+				7E8E3A971C45D5380017F6C1 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

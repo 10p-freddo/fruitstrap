@@ -14,8 +14,13 @@ See our [milestones](https://github.com/phonegap/ios-deploy/milestones).
 
 Significant changes: 
 
-    1.8.0 will use an Xcode project instead of a Makefile (to prepare for 2.0.0)
-    2.0.0 will break out the commands into their own files, and create ios-deploy-lib for node.js use
+    1.8.0 will use an Xcode project instead of a Makefile (to prepare for 2.0.0) (1.x branch)
+    2.0.0 will break out the commands into their own files, and create ios-deploy-lib for node.js use (master branch)
+	
+## Development
+
+The legacy `1.x` version is under the `1.x` branch. Bug fixes for the `1.x` series will occur under there.
+The 'master' branch now contains the `2.x` series, and is the development branch. 	
 
 ## Installation
 =======

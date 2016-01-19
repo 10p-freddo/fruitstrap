@@ -4,9 +4,23 @@ Install and debug iOS apps without using Xcode. Designed to work on un-jailbroke
 
 ## Requirements
 
-* Mac OS X. Tested on 10.10 Yosemite and iOS 8.3
+* Mac OS X. Tested on 10.11 El Capitan and iOS 9.0
 * You need to have a valid iOS Development certificate installed.
-* Xcode 6 or greater should be installed
+* Xcode 6.4 or greater should be installed
+
+## Roadmap
+
+See our [milestones](https://github.com/phonegap/ios-deploy/milestones).
+
+Significant changes: 
+
+    1.8.0 will use an Xcode project instead of a Makefile (to prepare for 2.0.0) (1.x branch)
+    2.0.0 will break out the commands into their own files, and create ios-deploy-lib for node.js use (master branch)
+	
+## Development
+
+The legacy `1.x` version is under the `1.x` branch. Bug fixes for the `1.x` series will occur under there.
+The 'master' branch now contains the `2.x` series, and is the development branch. 	
 
 ## Installation
 =======
@@ -23,42 +37,59 @@ Now install ios-deploy with the [node.js](https://nodejs.org) package manager:
 npm install -g ios-deploy
 ```
 
-To install from source:
+To build from source:
 
 ```
-make install prefix=/usr/local
+xcodebuild
 ```
 
-This will install ios-deploy in the `bin` folder of `/usr/local`, i.e. `/usr/local/bin`
+This will build `ios-deploy` into the `build/Release` folder.
+
+## Testing
+
+Run:
+
+```
+npm install && npm test
+```
+
+### OS X 10.11 El Capitan
+
+If you are *not* using a node version manager like [nvm](https://github.com/creationix/nvm) or [n](https://github.com/tj/n), you may have to do either of these three things below when under El Capitan:
+
+1. Add the `--unsafe-perm=true` flag  when installing ios-deploy
+2. Add the `--allow-root` flag  when installing ios-deploy
+3. Ensure the `nobody` user has write access to `/usr/local/lib/node_modules/ios-deploy/ios-deploy`
 
 ## Usage
 
     Usage: ios-deploy [OPTION]...
-      -d, --debug                  launch the app in GDB after installation
-      -i, --id <device_id>         the id of the device to connect to
-      -c, --detect                 only detect if the device is connected
-      -b, --bundle <bundle.app>    the path to the app bundle to be installed
-      -a, --args <args>            command line arguments to pass to the app when launching it
-      -t, --timeout <timeout>      number of seconds to wait for a device to be connected
-      -u, --unbuffered             don't buffer stdout
-      -n, --nostart                do not start the app when debugging
-      -I, --noninteractive         start in non interactive mode (quit when app crashes or exits)
-      -L, --justlaunch             just launch the app and exit lldb
-      -v, --verbose                enable verbose output
-      -m, --noinstall              directly start debugging without app install (-d not required)
-      -p, --port <number>          port used for device, default: 12345
-      -r, --uninstall              uninstall the app before install (do not use with -m; app cache and data are cleared)
-      -9, --uninstall_only         uninstall the app ONLY. Use only with -1 <bundle_id> 
-      -1, --bundle_id <bundle id>  specify bundle id for list, upload, and uninstall_only
-      -l, --list                   list files
-      -o, --upload <file>          upload file
-      -w, --download               download app tree
-      -2, --to <target pathname>   use together with up/download file/tree. specify target
-      -D, --mkdir <dir>            make directory on device
-      -R, --rm <path>              remove file or directory on device (directories must be empty)
-      -V, --version                print the executable version
-      -e, --exists                 check if the app with given bundle_id is installed or not
-      -B, --list_bundle_id         list bundle_id
+        -d, --debug                  launch the app in lldb after installation
+        -i, --id <device_id>         the id of the device to connect to
+        -c, --detect                 only detect if the device is connected
+        -b, --bundle <bundle.app>    the path to the app bundle to be installed
+        -a, --args <args>            command line arguments to pass to the app when launching it
+        -t, --timeout <timeout>      number of seconds to wait for a device to be connected
+        -u, --unbuffered             don't buffer stdout
+        -n, --nostart                do not start the app when debugging
+        -I, --noninteractive         start in non interactive mode (quit when app crashes or exits)
+        -L, --justlaunch             just launch the app and exit lldb
+        -v, --verbose                enable verbose output
+        -m, --noinstall              directly start debugging without app install (-d not required)
+        -p, --port <number>          port used for device, default: dynamic
+        -r, --uninstall              uninstall the app before install (do not use with -m; app cache and data are cleared) 
+        -9, --uninstall_only         uninstall the app ONLY. Use only with -1 <bundle_id> 
+        -1, --bundle_id <bundle id>  specify bundle id for list and upload
+        -l, --list                   list files
+        -o, --upload <file>          upload file
+        -w, --download               download app tree
+        -2, --to <target pathname>   use together with up/download file/tree. specify target
+        -D, --mkdir <dir>            make directory on device
+        -R, --rm <path>              remove file or directory on device (directories must be empty)
+        -V, --version                print the executable version 
+        -e, --exists                 check if the app with given bundle_id is installed or not 
+        -B, --list_bundle_id         list bundle_id 
+        -W, --no-wifi                ignore wifi devices
 
 ## Examples
 
@@ -66,6 +97,9 @@ The commands below assume that you have an app called `my.app` with bundle id `b
 
     // deploy and debug your app to a connected device
     ios-deploy --debug --bundle my.app
+
+    // deploy and debug your app to a connected device, skipping any wi-fi connection (use USB)
+    ios-deploy --debug --bundle my.app --no-wifi
 
     // deploy and launch your app to a connected device, but quit the debugger after
     ios-deploy --justlaunch --debug --bundle my.app
@@ -89,7 +123,7 @@ The commands below assume that you have an app called `my.app` with bundle id `b
     ios-deploy --exists --bundle_id com.apple.mobilemail
 
     // Download the Documents directory of the app *only*
-    ios-deploy --download=/Documents -bundle_id my.app.id --to ./my_download_location
+    ios-deploy --download=/Documents --bundle_id my.app.id --to ./my_download_location
     
     // List ids and names of connected devices
     ios-deploy -c
@@ -104,7 +138,7 @@ The commands below assume that you have an app called `my.app` with bundle id `b
 
 The included demo.app represents the minimum required to get code running on iOS.
 
-* `make demo.app` will generate the demo.app executable. If it doesn't compile, modify IOS_SDK_VERSION in the Makefile.
+* `make demo.app` will generate the demo.app executable. If it doesn't compile, modify `IOS_SDK_VERSION` in the Makefile.
 * `make debug` will install demo.app and launch a LLDB session.
 
 ## Notes

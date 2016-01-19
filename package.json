@@ -1,21 +1,34 @@
 {
   "name": "ios-deploy",
-  "version": "1.7.0",
-  "os" : [ "darwin" ],
-  "description": "launch iOS apps iOS devices from the command line (Xcode 6)",
+  "version": "2.0.0",
+  "os": [
+    "darwin"
+  ],
+  "description": "launch iOS apps iOS devices from the command line (Xcode 7)",
   "main": "ios-deploy",
   "scripts": {
-      "preinstall": "make ios-deploy"
   },
-  "bin" : "./ios-deploy" ,
+  "bin": "./build/Release/ios-deploy",
   "repository": {
     "type": "git",
     "url": "https://github.com/phonegap/ios-deploy"
+  },
+  "devDependencies": {
+  	"jshint": "2.5.8"
+  },
+  "scripts": {
+    "preinstall": "./src/scripts/check_reqs.js && xcodebuild",
+    "test": "npm run pycompile && npm run jshint && xcodebuild -scheme ios-deploy-lib && xcodebuild test -scheme ios-deploy-tests",
+    "jshint": "node node_modules/jshint/bin/jshint src/scripts/*.js",
+    "pycompile": "python -m py_compile src/scripts/*.py"
   },
   "keywords": [
     "ios-deploy",
     "deploy to iOS device"
   ],
+  "bugs": {
+      "url": "https://github.com/phonegap/ios-deploy/issues"
+   },
   "author": "Greg Hughes",
   "license": "GPLv3"
 }

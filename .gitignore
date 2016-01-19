@@ -1,6 +1,4 @@
-demo
-demo.app
-ios-deploy
-ios-deploy.dSYM
+build/*
+node_modules/*
 /.DS_Store
 *~

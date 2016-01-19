@@ -1,3 +1,4 @@
-demo
-demo.app
-fruitstrap
+build/*
+node_modules/*
+/.DS_Store
+*~

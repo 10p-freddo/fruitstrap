@@ -10,6 +10,8 @@
 	</array>
 	<key>CFBundleExecutable</key>
 	<string>demo</string>
+	<key>CFBundleVersion</key>
+	<string>1.0</string>
 	<key>CFBundleIdentifier</key>
 	<string>demo</string>
 	<key>CFBundleResourceSpecification</key>

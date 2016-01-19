@@ -195,6 +195,7 @@ mach_error_t AMDeviceNotificationSubscribe(am_device_notification_callback
     callback, unsigned int unused0, unsigned int unused1, void* //unsigned int
     dn_unknown3, struct am_device_notification **notification);
 
+
 /*  Connects to the iPhone. Pass in the am_device structure that the
  *  notification callback will give to you.
  *
@@ -396,11 +397,11 @@ afc_error_t AFCFileRefOpen(afc_connection *conn, const char *path,
 afc_error_t AFCFileRefSeek(afc_connection *conn, afc_file_ref ref,
     unsigned long long offset1, unsigned long long offset2);
 afc_error_t AFCFileRefRead(afc_connection *conn, afc_file_ref ref,
-    void *buf, unsigned int *len);
+    void *buf, size_t *len);
 afc_error_t AFCFileRefSetFileSize(afc_connection *conn, afc_file_ref ref,
     unsigned long long offset);
 afc_error_t AFCFileRefWrite(afc_connection *conn, afc_file_ref ref,
-    const void *buf, unsigned int len);
+    const void *buf, size_t len);
 afc_error_t AFCFileRefClose(afc_connection *conn, afc_file_ref ref);
 
 afc_error_t AFCFileInfoOpen(afc_connection *conn, const char *path, struct
@@ -447,6 +448,13 @@ void *AMDeviceSerialize(struct am_device *device);
 void AMDAddLogFileDescriptor(int fd);
 //kern_return_t AMDeviceSendMessage(service_conn_t socket, void *unused, CFPropertyListRef plist);
 //kern_return_t AMDeviceReceiveMessage(service_conn_t socket, CFDictionaryRef options, CFPropertyListRef * result);
+
+typedef int (*am_device_install_application_callback)(CFDictionaryRef, int);
+
+mach_error_t AMDeviceInstallApplication(service_conn_t socket, CFStringRef path, CFDictionaryRef options, am_device_install_application_callback callback, void *user);
+mach_error_t AMDeviceTransferApplication(service_conn_t socket, CFStringRef path, CFDictionaryRef options, am_device_install_application_callback callbackj, void *user);
+
+int AMDeviceSecureUninstallApplication(int unknown0, struct am_device *device, CFStringRef bundle_id, int unknown1, void *callback, int callback_arg);
 
 /* ----------------------------------------------------------------------------
  *   Semi-private routines

@@ -76,8 +76,8 @@ int AMDeviceGetInterfaceType(struct am_device *device);
 bool found_device = false, debug = false, verbose = false, unbuffered = false, nostart = false, detect_only = false, install = true, uninstall = false, no_wifi = false;
 bool command_only = false;
 char *command = NULL;
-char *target_filename = NULL;
-char *upload_pathname = NULL;
+char const*target_filename = NULL;
+char const*upload_pathname = NULL;
 char *bundle_id = NULL;
 bool interactive = true;
 bool justlaunch = false;
@@ -1192,9 +1192,9 @@ service_conn_t start_house_arrest_service(AMDeviceRef device) {
     return houseFd;
 }
 
-char* get_filename_from_path(char* path)
+char const* get_filename_from_path(char const* path)
 {
-    char *ptr = path + strlen(path);
+    char const*ptr = path + strlen(path);
     while (ptr > path)
     {
         if (*ptr == '/')
@@ -1208,7 +1208,7 @@ char* get_filename_from_path(char* path)
     return ptr+1;
 }
 
-void* read_file_to_memory(char * path, size_t* file_size)
+void* read_file_to_memory(char const * path, size_t* file_size)
 {
     struct stat buf;
     int err = stat(path, &buf);
@@ -1371,10 +1371,12 @@ void download_tree(AMDeviceRef device)
     if (afc_conn_p) AFCConnectionClose(afc_conn_p);
 }
 
-void upload_file(AMDeviceRef device) {
-    service_conn_t houseFd = start_house_arrest_service(device);
+void upload_dir(AMDeviceRef device, afc_connection* afc_conn_p, NSString* source, NSString* destination);
+void upload_single_file(AMDeviceRef device, afc_connection* afc_conn_p, NSString* sourcePath, NSString* destinationPath);
 
-    afc_file_ref file_ref;
+void upload_file(AMDeviceRef device)
+{
+    service_conn_t houseFd = start_house_arrest_service(device);
 
     afc_connection afc_conn;
     afc_connection* afc_conn_p = &afc_conn;
@@ -1387,42 +1389,80 @@ void upload_file(AMDeviceRef device) {
         target_filename = get_filename_from_path(upload_pathname);
     }
 
+    NSString* sourcePath = [NSString stringWithUTF8String: upload_pathname];
+    NSString* destinationPath = [NSString stringWithUTF8String: target_filename];
+
+    BOOL isDir;
+    bool exists = [[NSFileManager defaultManager] fileExistsAtPath: sourcePath isDirectory: &isDir];
+    if (!exists)
+    {
+        on_error(@"Could not find file: %s", upload_pathname);
+    }
+    else if (isDir)
+    {
+        upload_dir(device, afc_conn_p, sourcePath, destinationPath);
+    }
+    else
+    {
+        upload_single_file(device, afc_conn_p, sourcePath, destinationPath);
+    }
+    assert(AFCConnectionClose(afc_conn_p) == 0);
+}
+
+void upload_single_file(AMDeviceRef device, afc_connection* afc_conn_p, NSString* sourcePath, NSString* destinationPath) {
+
+    afc_file_ref file_ref;
+
+    //        read_dir(houseFd, NULL, "/", NULL);
+
     size_t file_size;
-    void* file_content = read_file_to_memory(upload_pathname, &file_size);
+    void* file_content = read_file_to_memory([sourcePath fileSystemRepresentation], &file_size);
 
     if (!file_content)
     {
-        on_error(@"Could not open file: %@", [NSString stringWithUTF8String:upload_pathname]);
+        on_error(@"Could not open file: %@", sourcePath);
     }
 
     // Make sure the directory was created
     {
-        char *dirpath = strdup(target_filename);
-        char *c = dirpath, *lastSlash = dirpath;
-        while(*c) {
-            if(*c == '/') {
-                lastSlash = c;
-            }
-            c++;
-        }
-        *lastSlash = '\0';
-        check_error(AFCDirectoryCreate(afc_conn_p, dirpath));
+        NSString *dirpath = [destinationPath stringByDeletingLastPathComponent];
+        check_error(AFCDirectoryCreate(afc_conn_p, [dirpath fileSystemRepresentation]));
     }
 
 
-    int ret = AFCFileRefOpen(afc_conn_p, target_filename, 3, &file_ref);
+    int ret = AFCFileRefOpen(afc_conn_p, [destinationPath fileSystemRepresentation], 3, &file_ref);
     if (ret == 0x000a) {
-        on_error(@"Cannot write to %@. Permission error.", [NSString stringWithUTF8String:target_filename]);
+        on_error(@"Cannot write to %@. Permission error.", destinationPath);
     }
     if (ret == 0x0009) {
-        on_error(@"Target %@ is a directory.", [NSString stringWithUTF8String:target_filename]);
+        on_error(@"Target %@ is a directory.", destinationPath);
     }
     assert(ret == 0);
     assert(AFCFileRefWrite(afc_conn_p, file_ref, file_content, file_size) == 0);
     assert(AFCFileRefClose(afc_conn_p, file_ref) == 0);
-    assert(AFCConnectionClose(afc_conn_p) == 0);
 
     free(file_content);
+}
+
+void upload_dir(AMDeviceRef device, afc_connection* afc_conn_p, NSString* source, NSString* destination)
+{
+    check_error(AFCDirectoryCreate(afc_conn_p, [destination fileSystemRepresentation]));
+    destination = [destination copy];
+    for (NSString* item in [[NSFileManager defaultManager] contentsOfDirectoryAtPath: source error: nil])
+    {
+        NSString* sourcePath = [source stringByAppendingPathComponent: item];
+        NSString* destinationPath = [destination stringByAppendingPathComponent: item];
+        BOOL isDir;
+        [[NSFileManager defaultManager] fileExistsAtPath: sourcePath isDirectory: &isDir];
+        if (isDir)
+        {
+            upload_dir(device, afc_conn_p, sourcePath, destinationPath);
+        }
+        else
+        {
+            upload_single_file(device, afc_conn_p, sourcePath, destinationPath);
+        }
+    }
 }
 
 void make_directory(AMDeviceRef device) {

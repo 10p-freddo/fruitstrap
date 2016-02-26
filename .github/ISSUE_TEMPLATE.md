@@ -1,4 +1,4 @@
-## MUST READ BEFORE YOU FILE
+## MUST READ BEFORE YOU FILE (DELETE THIS SECTION BEFORE FILING)
 
 Include the **command line arguments** you used for ios-deploy.
 
@@ -17,11 +17,12 @@ Don't forget to check out the [El Capitan](https://github.com/phonegap/ios-deplo
 
 Please run the commands below in your Terminal.app and include it in the issue. Check when done and include results below.
 
-[ ] 1. sw_vers -productVersion
-[ ] 2. ios-deploy -V
-[ ] 3. xcodebuild -version
-[ ] 4. xcode-select --print-path
-[ ] 5. gcc --version
-[ ] 6. lldb --version
+- [ ] 1. sw_vers -productVersion
+- [ ] 2. ios-deploy -V
+- [ ] 3. xcodebuild -version
+- [ ] 4. xcode-select --print-path
+- [ ] 5. gcc --version
+- [ ] 6. lldb --version
+
 
 

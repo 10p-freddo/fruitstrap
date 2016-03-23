@@ -1,0 +1,11 @@
+language: objective-c
+sudo: false
+node_js:
+  - "0.10"
+  - "0.12"
+  - "4.2"
+install:
+  - npm install
+
+script:
+  - "npm test"

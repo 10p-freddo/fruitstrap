@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/phonegap/ios-deploy.svg?branch=master)](https://travis-ci.org/phonegap/ios-deploy)
+
 ios-deploy
 ==========
 Install and debug iOS apps without using Xcode. Designed to work on un-jailbroken devices.

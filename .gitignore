@@ -2,3 +2,5 @@ build/*
 node_modules/*
 /.DS_Store
 *~
+src/scripts/lldb.pyc
+src/ios-deploy/lldb.py.h

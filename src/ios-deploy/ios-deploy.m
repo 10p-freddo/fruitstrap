@@ -330,12 +330,24 @@ const CFStringRef get_device_hardware_name(const AMDeviceRef device) {
     GET_FRIENDLY_MODEL_NAME(model, "P101AP", "iPad 4")
     GET_FRIENDLY_MODEL_NAME(model, "P102AP", "iPad 4 (GSM)")
     GET_FRIENDLY_MODEL_NAME(model, "P103AP", "iPad 4 (CDMA)")
+    GET_FRIENDLY_MODEL_NAME(model, "J71AP",  "iPad Air")
+    GET_FRIENDLY_MODEL_NAME(model, "J72AP",  "iPad Air (GSM)")
+    GET_FRIENDLY_MODEL_NAME(model, "J73AP",  "iPad Air (CDMA)")
+    GET_FRIENDLY_MODEL_NAME(model, "J81AP",  "iPad Air 2")
+    GET_FRIENDLY_MODEL_NAME(model, "J82AP",  "iPad Air 2 (GSM)")
+    GET_FRIENDLY_MODEL_NAME(model, "J83AP",  "iPad Air 2 (CDMA)")
 
     // iPad Mini
 
     GET_FRIENDLY_MODEL_NAME(model, "P105AP", "iPad mini")
     GET_FRIENDLY_MODEL_NAME(model, "P106AP", "iPad mini (GSM)")
     GET_FRIENDLY_MODEL_NAME(model, "P107AP", "iPad mini (CDMA)")
+    GET_FRIENDLY_MODEL_NAME(model, "J85AP",  "iPad mini 2")
+    GET_FRIENDLY_MODEL_NAME(model, "J86AP",  "iPad mini 2 (GSM)")
+    GET_FRIENDLY_MODEL_NAME(model, "J87AP",  "iPad mini 2 (CDMA)")
+    GET_FRIENDLY_MODEL_NAME(model, "J85MAP", "iPad mini 3")
+    GET_FRIENDLY_MODEL_NAME(model, "J86MAP", "iPad mini 3 (GSM)")
+    GET_FRIENDLY_MODEL_NAME(model, "J87MAP", "iPad mini 3 (CDMA)")
 
     // Apple TV
 

@@ -32,7 +32,10 @@ def run_command(debugger, command, result, internal_dict):
     args = command.split('--',1)
     error = lldb.SBError()
     lldb.target.modules[0].SetPlatformFileSpec(lldb.SBFileSpec(device_app))
-    lldb.target.Launch(lldb.SBLaunchInfo(shlex.split(args[1] and args[1] or '{args}')), error)
+    args_arr = []
+    if len(args) > 1:
+        args_arr = shlex.split(args[1] and args[1] or '{args}')
+    lldb.target.Launch(lldb.SBLaunchInfo(args_arr), error)
     lockedstr = ': Locked'
     if lockedstr in str(error):
        print('\\nDevice Locked\\n')

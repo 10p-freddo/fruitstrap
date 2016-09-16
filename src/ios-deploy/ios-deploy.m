@@ -345,6 +345,7 @@ const CFStringRef get_device_hardware_name(const AMDeviceRef device) {
     GET_FRIENDLY_MODEL_NAME(model, "K66AP",  "Apple TV 2G")
     GET_FRIENDLY_MODEL_NAME(model, "J33AP",  "Apple TV 3G")
     GET_FRIENDLY_MODEL_NAME(model, "J33IAP", "Apple TV 3.1G")
+    GET_FRIENDLY_MODEL_NAME(model, "J42dAP", "Apple TV 4G")
 
     // iPhone
 
@@ -368,6 +369,8 @@ const CFStringRef get_device_hardware_name(const AMDeviceRef device) {
     GET_FRIENDLY_MODEL_NAME(model, "N66AP", "iPhone 6s Plus")
     GET_FRIENDLY_MODEL_NAME(model, "N66mAP", "iPhone 6s Plus")
     GET_FRIENDLY_MODEL_NAME(model, "N69AP", "iPhone SE")
+
+    
 
     return model;
 }

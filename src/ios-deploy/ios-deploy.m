@@ -328,6 +328,13 @@ const CFStringRef get_device_hardware_name(const AMDeviceRef device) {
     GET_FRIENDLY_MODEL_NAME(model, "J82AP",  "iPad Air 2 (GSM)")
     GET_FRIENDLY_MODEL_NAME(model, "J83AP",  "iPad Air 2 (CDMA)")
 
+    // iPad Pro
+
+    GET_FRIENDLY_MODEL_NAME(model, "J98aAP",  "iPad Pro (12.9\")")
+    GET_FRIENDLY_MODEL_NAME(model, "J98aAP",  "iPad Pro (12.9\")")
+    GET_FRIENDLY_MODEL_NAME(model, "J127AP",  "iPad Pro (9.7\")")
+    GET_FRIENDLY_MODEL_NAME(model, "J128AP",  "iPad Pro (9.7\")")
+
     // iPad Mini
 
     GET_FRIENDLY_MODEL_NAME(model, "P105AP", "iPad mini")

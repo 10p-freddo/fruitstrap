@@ -371,6 +371,10 @@ const CFStringRef get_device_hardware_name(const AMDeviceRef device) {
     GET_FRIENDLY_MODEL_NAME(model, "N69AP", "iPhone SE")
     GET_FRIENDLY_MODEL_NAME(model, "N69uAP", "iPhone SE")
 
+    GET_FRIENDLY_MODEL_NAME(model, "D10AP", "iPhone 7")
+    GET_FRIENDLY_MODEL_NAME(model, "D101AP", "iPhone 7")
+    GET_FRIENDLY_MODEL_NAME(model, "D11AP", "iPhone 7 Plus")
+    GET_FRIENDLY_MODEL_NAME(model, "D111AP", "iPhone 7 Plus")
     
 
     return model;

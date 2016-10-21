@@ -6,7 +6,7 @@ Install and debug iOS apps without using Xcode. Designed to work on un-jailbroke
 
 ## Requirements
 
-* Mac OS X. Tested on 10.11 El Capitan and iOS 9.0
+* Mac OS X. Tested on 10.11 El Capitan, 10.12 Sierra, iOS 9.0 and iOS 10.0
 * You need to have a valid iOS Development certificate installed.
 * Xcode 6.4 or greater should be installed
 

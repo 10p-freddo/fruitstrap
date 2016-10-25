@@ -31,6 +31,7 @@
     target create \"{disk_app}\"\n\
     script fruitstrap_device_app=\"{device_app}\"\n\
     script fruitstrap_connect_url=\"connect://127.0.0.1:{device_port}\"\n\
+    target modules search-paths add {modules_search_paths_pairs}\n\
     command script import \"{python_file_path}\"\n\
     command script add -f {python_command}.connect_command connect\n\
     command script add -s asynchronous -f {python_command}.run_command run\n\
@@ -647,6 +648,18 @@ CFStringRef copy_disk_app_identifier(CFURLRef disk_app_url) {
     return bundle_identifier;
 }
 
+CFStringRef copy_modules_search_paths_pairs(CFStringRef symbols_path, CFStringRef disk_container, CFStringRef device_container_private, CFStringRef device_container_noprivate )
+{
+    CFMutableStringRef res = CFStringCreateMutable(kCFAllocatorDefault, 0);
+    CFStringAppendFormat(res, NULL, CFSTR("/usr \"%@/usr\""), symbols_path);
+    CFStringAppendFormat(res, NULL, CFSTR(" /System \"%@/System\""), symbols_path);
+    CFStringAppendFormat(res, NULL, CFSTR(" \"%@\" \"%@\""), device_container_private, disk_container);
+    CFStringAppendFormat(res, NULL, CFSTR(" \"%@\" \"%@\""), device_container_noprivate, disk_container);
+    CFStringAppendFormat(res, NULL, CFSTR(" /Developer \"%@/Developer\""), symbols_path);
+    
+    return res;
+}
+
 void write_lldb_prep_cmds(AMDeviceRef device, CFURLRef disk_app_url) {
     CFStringRef symbols_path = copy_device_support_path(device, CFSTR("/Symbols"));
     CFMutableStringRef cmds = CFStringCreateMutableCopy(NULL, 0, LLDB_PREP_CMDS);
@@ -705,7 +718,13 @@ void write_lldb_prep_cmds(AMDeviceRef device, CFURLRef disk_app_url) {
     CFURLRef disk_container_url = CFURLCreateCopyDeletingLastPathComponent(NULL, disk_app_url);
     CFStringRef disk_container_path = CFURLCopyFileSystemPath(disk_container_url, kCFURLPOSIXPathStyle);
     CFStringFindAndReplace(cmds, CFSTR("{disk_container}"), disk_container_path, range, 0);
-
+    range.length = CFStringGetLength(cmds);
+    
+    CFStringRef search_paths_pairs = copy_modules_search_paths_pairs(symbols_path, disk_container_path, device_container_path, dcp_noprivate);
+    CFStringFindAndReplace(cmds, CFSTR("{modules_search_paths_pairs}"), search_paths_pairs, range, 0);
+    range.length = CFStringGetLength(cmds);
+    CFRelease(search_paths_pairs);
+    
     NSString* python_file_path = [NSString stringWithFormat:@"/tmp/%@/fruitstrap_", tmpUUID];
     mkdirp(python_file_path);
 

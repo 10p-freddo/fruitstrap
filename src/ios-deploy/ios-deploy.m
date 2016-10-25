@@ -27,7 +27,7 @@
  * log enable -v -f /Users/vargaz/gdb-remote.log gdb-remote all
  */
 #define LLDB_PREP_CMDS CFSTR("\
-    platform select remote-ios --sysroot {symbols_path}\n\
+    platform select remote-ios --sysroot '{symbols_path}'\n\
     target create \"{disk_app}\"\n\
     script fruitstrap_device_app=\"{device_app}\"\n\
     script fruitstrap_connect_url=\"connect://127.0.0.1:{device_port}\"\n\
@@ -460,7 +460,7 @@ CFMutableArrayRef get_device_product_version_parts(AMDeviceRef device) {
     return result;
 }
 
-CFStringRef copy_device_support_path(AMDeviceRef device) {
+CFStringRef copy_device_support_path(AMDeviceRef device, CFStringRef suffix) {
     CFStringRef version = NULL;
     CFStringRef build = AMDeviceCopyValue(device, 0, CFSTR("BuildVersion"));
     CFStringRef deviceClass = AMDeviceCopyValue(device, 0, CFSTR("DeviceClass"));
@@ -474,28 +474,28 @@ CFStringRef copy_device_support_path(AMDeviceRef device) {
     CFStringRef deviceClassPath_alt;
     if (CFStringCompare(CFSTR("AppleTV"), deviceClass, 0) == kCFCompareEqualTo) {
       deviceClassPath_platform = CFSTR("Platforms/AppleTVOS.platform/DeviceSupport");
-      deviceClassPath_alt = CFSTR("tvOS\\ DeviceSupport");
+      deviceClassPath_alt = CFSTR("tvOS DeviceSupport");
     } else {
       deviceClassPath_platform = CFSTR("Platforms/iPhoneOS.platform/DeviceSupport");
-      deviceClassPath_alt = CFSTR("iOS\\ DeviceSupport");
+      deviceClassPath_alt = CFSTR("iOS DeviceSupport");
     }
     while (CFArrayGetCount(version_parts) > 0) {
         version = CFStringCreateByCombiningStrings(NULL, version_parts, CFSTR("."));
         NSLogVerbose(@"version: %@", version);
         if (path == NULL) {
-            path = copy_xcode_path_for(deviceClassPath_alt, CFStringCreateWithFormat(NULL, NULL, CFSTR("%@\\ \\(%@\\)"), version, build));
+            path = copy_xcode_path_for(deviceClassPath_alt, CFStringCreateWithFormat(NULL, NULL, CFSTR("%@ (%@)%@"), version, build, suffix));
         }
         if (path == NULL) {
-            path = copy_xcode_path_for(deviceClassPath_platform, CFStringCreateWithFormat(NULL, NULL, CFSTR("%@\\ \\(%@\\)"), version, build));
+            path = copy_xcode_path_for(deviceClassPath_platform, CFStringCreateWithFormat(NULL, NULL, CFSTR("%@ (%@)%@"), version, build, suffix));
         }
         if (path == NULL) {
-            path = copy_xcode_path_for(deviceClassPath_platform, CFStringCreateWithFormat(NULL, NULL, CFSTR("%@\\ \\(*\\)"), version));
+            path = copy_xcode_path_for(deviceClassPath_platform, CFStringCreateWithFormat(NULL, NULL, CFSTR("%@ (*)%@"), version, suffix));
         }
         if (path == NULL) {
-            path = copy_xcode_path_for(deviceClassPath_platform, version);
+            path = copy_xcode_path_for(deviceClassPath_platform, CFStringCreateWithFormat(NULL, NULL, CFSTR("%@%@"), version, suffix));
         }
         if (path == NULL) {
-            path = copy_xcode_path_for(CFStringCreateWithFormat(NULL, NULL, CFSTR("%@%@"), deviceClassPath_platform, CFSTR("/Latest")), CFSTR(""));
+            path = copy_xcode_path_for(CFStringCreateWithFormat(NULL, NULL, CFSTR("%@%@"), deviceClassPath_platform, CFSTR("/Latest")), suffix);
         }
         CFRelease(version);
         if (path != NULL) {
@@ -508,62 +508,7 @@ CFStringRef copy_device_support_path(AMDeviceRef device) {
     CFRelease(build);
     CFRelease(deviceClass);
     if (path == NULL)
-        on_error(@"Unable to locate DeviceSupport directory. This probably means you don't have Xcode installed, you will need to launch the app manually and logging output will not be shown!");
-
-    return path;
-}
-
-CFStringRef copy_developer_disk_image_path(AMDeviceRef device) {
-    CFStringRef version = NULL;
-    CFStringRef build = AMDeviceCopyValue(device, 0, CFSTR("BuildVersion"));
-    CFStringRef deviceClass = AMDeviceCopyValue(device, 0, CFSTR("DeviceClass"));
-    CFStringRef path = NULL;
-    CFMutableArrayRef version_parts = get_device_product_version_parts(device);
-
-    NSLogVerbose(@"Device Class: %@", deviceClass);
-    NSLogVerbose(@"build: %@", build);
-    CFStringRef deviceClassPath_platform;
-    CFStringRef deviceClassPath_alt;
-    if (CFStringCompare(CFSTR("AppleTV"), deviceClass, 0) == kCFCompareEqualTo) {
-      deviceClassPath_platform = CFSTR("Platforms/AppleTVOS.platform/DeviceSupport");
-      deviceClassPath_alt = CFSTR("tvOS\\ DeviceSupport");
-    } else {
-      deviceClassPath_platform = CFSTR("Platforms/iPhoneOS.platform/DeviceSupport");
-      deviceClassPath_alt = CFSTR("iOS\\ DeviceSupport");
-    }
-    // path = getPathForTVOS(device);
-    while (CFArrayGetCount(version_parts) > 0) {
-        version = CFStringCreateByCombiningStrings(NULL, version_parts, CFSTR("."));
-        NSLogVerbose(@"version: %@", version);
-
-        if (path == NULL) {
-            path = copy_xcode_path_for(CFStringCreateWithFormat(NULL, NULL, CFSTR("%@/%@\\ \\(%@\\)"), deviceClassPath_alt, version, build), CFSTR("DeveloperDiskImage.dmg"));
-        }
-        if (path == NULL) {
-            path = copy_xcode_path_for(deviceClassPath_platform, CFStringCreateWithFormat(NULL, NULL, CFSTR("%@ (%@)/DeveloperDiskImage.dmg"), version, build));
-        }
-        if (path == NULL) {
-            path = copy_xcode_path_for(CFStringCreateWithFormat(NULL, NULL, CFSTR("%@/%@\\ \\(*\\)"), deviceClassPath_platform, version), CFSTR("DeveloperDiskImage.dmg"));
-        }
-        if (path == NULL) {
-            path = copy_xcode_path_for(deviceClassPath_platform, CFStringCreateWithFormat(NULL, NULL, CFSTR("%@/DeveloperDiskImage.dmg"), version));
-        }
-        if (path == NULL) {
-            path = copy_xcode_path_for(CFStringCreateWithFormat(NULL, NULL, CFSTR("%@/Latest"), deviceClassPath_platform), CFSTR("/DeveloperDiskImage.dmg"));
-        }
-        CFRelease(version);
-        if (path != NULL) {
-            break;
-        }
-        CFArrayRemoveValueAtIndex(version_parts, CFArrayGetCount(version_parts) - 1);
-    }
-
-    CFRelease(version_parts);
-    CFRelease(build);
-    CFRelease(deviceClass);
-    if (path == NULL)
-        on_error(@"Unable to locate DeveloperDiskImage.dmg. This probably means you don't have Xcode installed, you will need to launch the app manually and logging output will not be shown!");
-
+        on_error([NSString stringWithFormat:@"Unable to locate DeviceSupport directory with suffix '%@'. This probably means you don't have Xcode installed, you will need to launch the app manually and logging output will not be shown!", suffix]);
     return path;
 }
 
@@ -580,13 +525,10 @@ void mount_callback(CFDictionaryRef dict, int arg) {
 }
 
 void mount_developer_image(AMDeviceRef device) {
-    CFStringRef ds_path = copy_device_support_path(device);
-    CFStringRef image_path = copy_developer_disk_image_path(device);
+    CFStringRef image_path = copy_device_support_path(device, CFSTR("/DeveloperDiskImage.dmg"));
     CFStringRef sig_path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@.signature"), image_path);
 
-    NSLogVerbose(@"Device support path: %@", ds_path);
     NSLogVerbose(@"Developer disk image: %@", image_path);
-    CFRelease(ds_path);
 
     FILE* sig = fopen(CFStringGetCStringPtr(sig_path, kCFStringEncodingMacRoman), "rb");
     void *sig_buf = malloc(128);
@@ -706,16 +648,11 @@ CFStringRef copy_disk_app_identifier(CFURLRef disk_app_url) {
 }
 
 void write_lldb_prep_cmds(AMDeviceRef device, CFURLRef disk_app_url) {
-    CFStringRef ds_path = copy_device_support_path(device);
-    CFStringRef symbols_path = CFStringCreateWithFormat(NULL, NULL, CFSTR("'%@/Symbols'"), ds_path);
-
+    CFStringRef symbols_path = copy_device_support_path(device, CFSTR("/Symbols"));
     CFMutableStringRef cmds = CFStringCreateMutableCopy(NULL, 0, LLDB_PREP_CMDS);
     CFRange range = { 0, CFStringGetLength(cmds) };
 
     CFStringFindAndReplace(cmds, CFSTR("{symbols_path}"), symbols_path, range, 0);
-    range.length = CFStringGetLength(cmds);
-
-    CFStringFindAndReplace(cmds, CFSTR("{ds_path}"), ds_path, range, 0);
     range.length = CFStringGetLength(cmds);
 
     CFMutableStringRef pmodule = CFStringCreateMutableCopy(NULL, 0, (CFStringRef)LLDB_FRUITSTRAP_MODULE);
@@ -814,7 +751,7 @@ void write_lldb_prep_cmds(AMDeviceRef device, CFURLRef disk_app_url) {
     fclose(out);
 
     CFRelease(cmds);
-    if (ds_path != NULL) CFRelease(ds_path);
+    CFRelease(symbols_path);
     CFRelease(bundle_identifier);
     CFRelease(device_app_url);
     CFRelease(device_app_path);

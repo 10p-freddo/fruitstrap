@@ -184,16 +184,28 @@ Boolean path_exists(CFTypeRef path) {
     }
 }
 
-CFStringRef find_path(CFStringRef rootPath, CFStringRef namePattern, CFStringRef expression) {
+CFStringRef find_path(CFStringRef rootPath, CFStringRef namePattern) {
     FILE *fpipe = NULL;
     CFStringRef cf_command;
-    CFRange slashLocation;
 
-    slashLocation = CFStringFind(namePattern, CFSTR("/"), 0);
-    if (slashLocation.location == kCFNotFound) {
-        cf_command = CFStringCreateWithFormat(NULL, NULL, CFSTR("find %@ -name '%@' %@ 2>/dev/null | sort | tail -n 1"), rootPath, namePattern, expression);
+    if( !path_exists(rootPath) )
+        return NULL;
+    
+    if (CFStringFind(namePattern, CFSTR("*"), 0).location == kCFNotFound) {
+        //No wildcards. Let's speed up the search
+        CFStringRef path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@/%@"), rootPath, namePattern);
+        
+        if( path_exists(path) )
+            return path;
+        
+        CFRelease(path);
+        return NULL;
+    }
+    
+    if (CFStringFind(namePattern, CFSTR("/"), 0).location == kCFNotFound) {
+        cf_command = CFStringCreateWithFormat(NULL, NULL, CFSTR("find '%@' -name '%@' -maxdepth 1 2>/dev/null | sort | tail -n 1"), rootPath, namePattern);
     } else {
-        cf_command = CFStringCreateWithFormat(NULL, NULL, CFSTR("find %@ -path '%@' %@ 2>/dev/null | sort | tail -n 1"), rootPath, namePattern, expression);
+        cf_command = CFStringCreateWithFormat(NULL, NULL, CFSTR("find '%@' -path '%@/%@' 2>/dev/null | sort | tail -n 1"), rootPath, rootPath, namePattern);
     }
 
     char command[1024] = { '\0' };
@@ -209,11 +221,14 @@ CFStringRef find_path(CFStringRef rootPath, CFStringRef namePattern, CFStringRef
     pclose(fpipe);
 
     strtok(buffer, "\n");
-    return CFStringCreateWithCString(NULL, buffer, kCFStringEncodingUTF8);
-}
+    
+    CFStringRef path = CFStringCreateWithCString(NULL, buffer, kCFStringEncodingUTF8);
+        
+    if( CFStringGetLength(path) > 0 && path_exists(path) )
+        return path;
 
-CFStringRef copy_long_shot_disk_image_path() {
-    return find_path(CFSTR("`xcode-select --print-path`"), CFSTR("DeveloperDiskImage.dmg"), CFSTR(""));
+    CFRelease(path);
+    return NULL;
 }
 
 CFStringRef copy_xcode_dev_path() {
@@ -245,48 +260,35 @@ const char *get_home() {
     return home;
 }
 
+CFStringRef copy_xcode_path_for_impl(CFStringRef rootPath, CFStringRef subPath, CFStringRef search) {
+    CFStringRef searchPath = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@/%@"), rootPath, subPath );
+    CFStringRef res = find_path(searchPath, search);
+    CFRelease(searchPath);
+    return res;
+}
+
 CFStringRef copy_xcode_path_for(CFStringRef subPath, CFStringRef search) {
     CFStringRef xcodeDevPath = copy_xcode_dev_path();
     CFStringRef path = NULL;
-    bool found = false;
     const char* home = get_home();
-    CFRange slashLocation;
-
-
+    
     // Try using xcode-select --print-path
-    if (!found) {
-        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@/%@/%@"), xcodeDevPath, subPath, search);
-        found = path_exists(path);
-    }
-    // Try find `xcode-select --print-path` with search as a name pattern
-    if (!found) {
-        slashLocation = CFStringFind(search, CFSTR("/"), 0);
-        if (slashLocation.location == kCFNotFound) {
-        path = find_path(CFStringCreateWithFormat(NULL, NULL, CFSTR("%@/%@"), xcodeDevPath, subPath), search, CFSTR("-maxdepth 1"));
-        } else {
-             path = find_path(CFStringCreateWithFormat(NULL, NULL, CFSTR("%@/%@"), xcodeDevPath, subPath), search, CFSTR(""));
-        }
-        found = CFStringGetLength(path) > 0 && path_exists(path);
-    }
+    path = copy_xcode_path_for_impl(xcodeDevPath, subPath, search);
+    
     // If not look in the default xcode location (xcode-select is sometimes wrong)
-    if (!found) {
-        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("/Applications/Xcode.app/Contents/Developer/%@&%@"), subPath, search);
-        found = path_exists(path);
-    }
+    if (path == NULL)
+        path = copy_xcode_path_for_impl(CFSTR("/Applications/Xcode.app/Contents/Developer"), subPath, search);
+
     // If not look in the users home directory, Xcode can store device support stuff there
-    if (!found) {
-        path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%s/Library/Developer/Xcode/%@/%@"), home, subPath, search);
-        found = path_exists(path);
+    if (path == NULL) {
+        CFRelease(xcodeDevPath);
+        xcodeDevPath = CFStringCreateWithFormat(NULL, NULL, CFSTR("%s/Library/Developer/Xcode"), home );
+        path = copy_xcode_path_for_impl(xcodeDevPath, subPath, search);
     }
 
     CFRelease(xcodeDevPath);
-
-    if (found) {
-        return path;
-    } else {
-        CFRelease(path);
-        return NULL;
-    }
+    
+    return path;
 }
 
 #define GET_FRIENDLY_MODEL_NAME(VALUE, INTERNAL_NAME, FRIENDLY_NAME)  if (kCFCompareEqualTo  == CFStringCompare(VALUE, CFSTR(INTERNAL_NAME), kCFCompareNonliteral)) { return CFSTR( FRIENDLY_NAME); };
@@ -471,38 +473,44 @@ CFStringRef copy_device_support_path(AMDeviceRef device, CFStringRef suffix) {
     NSLogVerbose(@"Device Class: %@", deviceClass);
     NSLogVerbose(@"build: %@", build);
 
-    CFStringRef deviceClassPath_platform;
-    CFStringRef deviceClassPath_alt;
+    CFStringRef deviceClassPath[2];
+    
     if (CFStringCompare(CFSTR("AppleTV"), deviceClass, 0) == kCFCompareEqualTo) {
-      deviceClassPath_platform = CFSTR("Platforms/AppleTVOS.platform/DeviceSupport");
-      deviceClassPath_alt = CFSTR("tvOS DeviceSupport");
+      deviceClassPath[0] = CFSTR("Platforms/AppleTVOS.platform/DeviceSupport");
+      deviceClassPath[1] = CFSTR("tvOS DeviceSupport");
     } else {
-      deviceClassPath_platform = CFSTR("Platforms/iPhoneOS.platform/DeviceSupport");
-      deviceClassPath_alt = CFSTR("iOS DeviceSupport");
+      deviceClassPath[0] = CFSTR("Platforms/iPhoneOS.platform/DeviceSupport");
+      deviceClassPath[1] = CFSTR("iOS DeviceSupport");
     }
     while (CFArrayGetCount(version_parts) > 0) {
         version = CFStringCreateByCombiningStrings(NULL, version_parts, CFSTR("."));
         NSLogVerbose(@"version: %@", version);
-        if (path == NULL) {
-            path = copy_xcode_path_for(deviceClassPath_alt, CFStringCreateWithFormat(NULL, NULL, CFSTR("%@ (%@)%@"), version, build, suffix));
+        
+        for( int i = 0; i < 2; ++i ) {
+            if (path == NULL) {
+                path = copy_xcode_path_for(deviceClassPath[i], CFStringCreateWithFormat(NULL, NULL, CFSTR("%@ (%@)/%@"), version, build, suffix));
+            }
+            
+            if (path == NULL) {
+                path = copy_xcode_path_for(deviceClassPath[i], CFStringCreateWithFormat(NULL, NULL, CFSTR("%@ (*)/%@"), version, suffix));
+            }
+            
+            if (path == NULL) {
+                path = copy_xcode_path_for(deviceClassPath[i], CFStringCreateWithFormat(NULL, NULL, CFSTR("%@/%@"), version, suffix));
+            }
         }
-        if (path == NULL) {
-            path = copy_xcode_path_for(deviceClassPath_platform, CFStringCreateWithFormat(NULL, NULL, CFSTR("%@ (%@)%@"), version, build, suffix));
-        }
-        if (path == NULL) {
-            path = copy_xcode_path_for(deviceClassPath_platform, CFStringCreateWithFormat(NULL, NULL, CFSTR("%@ (*)%@"), version, suffix));
-        }
-        if (path == NULL) {
-            path = copy_xcode_path_for(deviceClassPath_platform, CFStringCreateWithFormat(NULL, NULL, CFSTR("%@%@"), version, suffix));
-        }
-        if (path == NULL) {
-            path = copy_xcode_path_for(CFStringCreateWithFormat(NULL, NULL, CFSTR("%@%@"), deviceClassPath_platform, CFSTR("/Latest")), suffix);
-        }
+        
         CFRelease(version);
         if (path != NULL) {
             break;
         }
         CFArrayRemoveValueAtIndex(version_parts, CFArrayGetCount(version_parts) - 1);
+    }
+    
+    for( int i = 0; i < 2; ++i ) {
+        if (path == NULL) {
+            path = copy_xcode_path_for(deviceClassPath[i], CFStringCreateWithFormat(NULL, NULL, CFSTR("Latest/%@"), suffix));
+        }
     }
 
     CFRelease(version_parts);
@@ -526,7 +534,7 @@ void mount_callback(CFDictionaryRef dict, int arg) {
 }
 
 void mount_developer_image(AMDeviceRef device) {
-    CFStringRef image_path = copy_device_support_path(device, CFSTR("/DeveloperDiskImage.dmg"));
+    CFStringRef image_path = copy_device_support_path(device, CFSTR("DeveloperDiskImage.dmg"));
     CFStringRef sig_path = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@.signature"), image_path);
 
     NSLogVerbose(@"Developer disk image: %@", image_path);
@@ -661,7 +669,7 @@ CFStringRef copy_modules_search_paths_pairs(CFStringRef symbols_path, CFStringRe
 }
 
 void write_lldb_prep_cmds(AMDeviceRef device, CFURLRef disk_app_url) {
-    CFStringRef symbols_path = copy_device_support_path(device, CFSTR("/Symbols"));
+    CFStringRef symbols_path = copy_device_support_path(device, CFSTR("Symbols"));
     CFMutableStringRef cmds = CFStringCreateMutableCopy(NULL, 0, LLDB_PREP_CMDS);
     CFRange range = { 0, CFStringGetLength(cmds) };
 

@@ -269,6 +269,7 @@ CFStringRef copy_xcode_path_for_impl(CFStringRef rootPath, CFStringRef subPath, 
 
 CFStringRef copy_xcode_path_for(CFStringRef subPath, CFStringRef search) {
     CFStringRef xcodeDevPath = copy_xcode_dev_path();
+    CFStringRef defaultXcodeDevPath = CFSTR("/Applications/Xcode.app/Contents/Developer");
     CFStringRef path = NULL;
     const char* home = get_home();
     
@@ -276,8 +277,8 @@ CFStringRef copy_xcode_path_for(CFStringRef subPath, CFStringRef search) {
     path = copy_xcode_path_for_impl(xcodeDevPath, subPath, search);
     
     // If not look in the default xcode location (xcode-select is sometimes wrong)
-    if (path == NULL)
-        path = copy_xcode_path_for_impl(CFSTR("/Applications/Xcode.app/Contents/Developer"), subPath, search);
+    if (path == NULL && CFStringCompare(xcodeDevPath, defaultXcodeDevPath, 0) != kCFCompareEqualTo )
+        path = copy_xcode_path_for_impl(defaultXcodeDevPath, subPath, search);
 
     // If not look in the users home directory, Xcode can store device support stuff there
     if (path == NULL) {
@@ -464,6 +465,9 @@ CFMutableArrayRef get_device_product_version_parts(AMDeviceRef device) {
 }
 
 CFStringRef copy_device_support_path(AMDeviceRef device, CFStringRef suffix) {
+    time_t startTime, endTime;
+    time( &startTime );
+    
     CFStringRef version = NULL;
     CFStringRef build = AMDeviceCopyValue(device, 0, CFSTR("BuildVersion"));
     CFStringRef deviceClass = AMDeviceCopyValue(device, 0, CFSTR("DeviceClass"));
@@ -518,6 +522,10 @@ CFStringRef copy_device_support_path(AMDeviceRef device, CFStringRef suffix) {
     CFRelease(deviceClass);
     if (path == NULL)
         on_error([NSString stringWithFormat:@"Unable to locate DeviceSupport directory with suffix '%@'. This probably means you don't have Xcode installed, you will need to launch the app manually and logging output will not be shown!", suffix]);
+    
+    time( &endTime );
+    NSLogVerbose(@"DeviceSupport directory '%@' was located. It took %.2f seconds", path, difftime(endTime,startTime));
+    
     return path;
 }
 

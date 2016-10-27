@@ -35,6 +35,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		7B28C98C1DC10655009569B6 /* device_db.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = device_db.h; sourceTree = "<group>"; };
 		7E1C00CC1C3C93AF00D686B5 /* version.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = version.h; sourceTree = "<group>"; };
 		7E1C00CF1C3C9ABB00D686B5 /* lldb.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = lldb.py; path = src/scripts/lldb.py; sourceTree = SOURCE_ROOT; };
 		7E1C00D11C3C9CB000D686B5 /* lldb.py.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = lldb.py.h; sourceTree = "<group>"; };
@@ -122,6 +123,7 @@
 				7E7089991B587DE4004D23AA /* ios-deploy.m */,
 				7E70899A1B587DE4004D23AA /* errors.h */,
 				7E70899B1B587DE4004D23AA /* MobileDevice.h */,
+				7B28C98C1DC10655009569B6 /* device_db.h */,
 			);
 			name = "ios-deploy";
 			path = "src/ios-deploy";

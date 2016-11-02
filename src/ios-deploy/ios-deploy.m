@@ -297,7 +297,7 @@ device_desc get_device_desc(CFStringRef model) {
     if (model != NULL) {
         size_t sz = sizeof(device_db) / sizeof(device_desc);
         for (size_t i = 0; i < sz; i ++) {
-            if (CFStringCompare(model, device_db[i].model, kCFCompareNonliteral) == kCFCompareEqualTo) {
+            if (CFStringCompare(model, device_db[i].model, kCFCompareNonliteral | kCFCompareCaseInsensitive) == kCFCompareEqualTo) {
                 return device_db[i];
             }
         }
@@ -336,26 +336,27 @@ CFStringRef get_device_full_name(const AMDeviceRef device) {
 
     // Please ensure that device is connected or the name will be unknown
     CFStringRef model = AMDeviceCopyValue(device, 0, CFSTR("HardwareModel"));
-    if (model == NULL) {
-        model_name = device_db[UNKNOWN_DEVICE_IDX].name;
-        sdk_name = device_db[UNKNOWN_DEVICE_IDX].sdk;
-        arch_name = device_db[UNKNOWN_DEVICE_IDX].arch;
+    device_desc dev;
+    if (model != NULL) {
+        dev = get_device_desc(model);
     } else {
-        device_desc dev = get_device_desc(model);
-        model_name = dev.name;
-        sdk_name = dev.sdk;
-        arch_name = dev.arch;
+        dev= device_db[UNKNOWN_DEVICE_IDX];
+        model = dev.model;
     }
+    model_name = dev.name;
+    sdk_name = dev.sdk;
+    arch_name = dev.arch;
 
+    NSLogVerbose(@"Hardware Model: %@", model);
     NSLogVerbose(@"Device Name: %@", device_name);
     NSLogVerbose(@"Model Name: %@", model_name);
     NSLogVerbose(@"SDK Name: %@", sdk_name);
     NSLogVerbose(@"Architecture Name: %@", arch_name);
 
-    if (device_name != NULL && model_name != NULL) {
-        full_name = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@ a.k.a. '%@' (%@, %@, %@)"), device_udid, device_name, model_name, sdk_name, arch_name);
+    if (device_name != NULL) {
+        full_name = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@ (%@, %@, %@, %@) a.k.a. '%@'"), device_udid, model, model_name, sdk_name, arch_name, device_name);
     } else {
-        full_name = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@ss"), device_udid);
+        full_name = CFStringCreateWithFormat(NULL, NULL, CFSTR("%@ (%@, %@, %@, %@)"), device_udid, model, model_name, sdk_name, arch_name);
     }
 
     AMDeviceDisconnect(device);

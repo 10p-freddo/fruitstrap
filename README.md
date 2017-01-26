@@ -55,7 +55,7 @@ Run:
 npm install && npm test
 ```
 
-### OS X 10.11 El Capitan
+### OS X 10.11 El Capitan or greater
 
 If you are *not* using a node version manager like [nvm](https://github.com/creationix/nvm) or [n](https://github.com/tj/n), you may have to do either of these three things below when under El Capitan:
 

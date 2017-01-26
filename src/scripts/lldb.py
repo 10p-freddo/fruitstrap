@@ -45,8 +45,8 @@ def run_command(debugger, command, result, internal_dict):
     args_arr = []
     if len(args) > 1:
         args_arr = shlex.split(args[1])
-    else:
-        args_arr = shlex.split('{args}')
+    args_arr = args_arr + shlex.split('{args}')
+
     launchInfo = lldb.SBLaunchInfo(args_arr)
     global listener
     launchInfo.SetListener(listener)

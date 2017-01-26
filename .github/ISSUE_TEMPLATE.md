@@ -17,7 +17,7 @@ Don't forget to check out the [El Capitan](https://github.com/phonegap/ios-deplo
 
 Please run the commands below in your Terminal.app and include it in the issue. Check when done and include results below.
 
-- [ ] 1. sw_vers -productVersion
+- [ ] 1. system_profiler SPSoftwareDataType
 - [ ] 2. ios-deploy -V
 - [ ] 3. xcodebuild -version
 - [ ] 4. xcode-select --print-path

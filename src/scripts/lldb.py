@@ -3,16 +3,26 @@ import os
 import sys
 import shlex
 
+listener = None
+
 def connect_command(debugger, command, result, internal_dict):
     # These two are passed in by the script which loads us
     connect_url = internal_dict['fruitstrap_connect_url']
     error = lldb.SBError()
-
-    process = lldb.target.ConnectRemote(lldb.target.GetDebugger().GetListener(), connect_url, None, error)
+    
+    # We create a new listener here and will use it for both target and the process.
+    # It allows us to prevent data races when both our code and internal lldb code
+    # try to process STDOUT/STDERR messages
+    global listener
+    listener = lldb.SBListener('iosdeploy_listener')
+    
+    listener.StartListeningForEventClass(debugger,
+                                            lldb.SBTarget.GetBroadcasterClassName(),
+                                            lldb.SBProcess.eBroadcastBitStateChanged | lldb.SBProcess.eBroadcastBitSTDOUT | lldb.SBProcess.eBroadcastBitSTDERR)
+    
+    process = lldb.target.ConnectRemote(listener, connect_url, None, error)
 
     # Wait for connection to succeed
-    listener = lldb.target.GetDebugger().GetListener()
-    listener.StartListeningForEvents(process.GetBroadcaster(), lldb.SBProcess.eBroadcastBitStateChanged)
     events = []
     state = (process.GetState() or lldb.eStateInvalid)
     while state != lldb.eStateConnected:
@@ -37,7 +47,10 @@ def run_command(debugger, command, result, internal_dict):
         args_arr = shlex.split(args[1])
     args_arr = args_arr + shlex.split('{args}')
 
-    lldb.target.Launch(lldb.SBLaunchInfo(args_arr), error)
+    launchInfo = lldb.SBLaunchInfo(args_arr)
+    global listener
+    launchInfo.SetListener(listener)
+    lldb.target.Launch(launchInfo, error)
     lockedstr = ': Locked'
     if lockedstr in str(error):
        print('\\nDevice Locked\\n')
@@ -58,28 +71,57 @@ def safequit_command(debugger, command, result, internal_dict):
         os._exit(1)
 
 def autoexit_command(debugger, command, result, internal_dict):
+    global listener
     process = lldb.target.process
-    listener = debugger.GetListener()
-    listener.StartListeningForEvents(process.GetBroadcaster(), lldb.SBProcess.eBroadcastBitStateChanged | lldb.SBProcess.eBroadcastBitSTDOUT | lldb.SBProcess.eBroadcastBitSTDERR)
+    
+    # This line prevents internal lldb listener from processing STDOUT/STDERR messages. Without it, an order of log writes is incorrect sometimes
+    debugger.GetListener().StopListeningForEvents(process.GetBroadcaster(), lldb.SBProcess.eBroadcastBitSTDOUT | lldb.SBProcess.eBroadcastBitSTDERR )
+
     event = lldb.SBEvent()
-    while True:
-        if listener.WaitForEvent(1, event) and lldb.SBProcess.EventIsProcessEvent(event):
-            state = lldb.SBProcess.GetStateFromEvent(event)
-        else:
-            state = process.GetState()
-
-        if state == lldb.eStateExited:
-            os._exit(process.GetExitStatus())
-        elif state == lldb.eStateStopped:
-            debugger.HandleCommand('bt')
-            os._exit({exitcode_app_crash})
-
+    
+    def ProcessSTDOUT():
         stdout = process.GetSTDOUT(1024)
         while stdout:
             sys.stdout.write(stdout)
             stdout = process.GetSTDOUT(1024)
 
+    def ProcessSTDERR():
         stderr = process.GetSTDERR(1024)
         while stderr:
             sys.stdout.write(stderr)
             stderr = process.GetSTDERR(1024)
+    
+    while True:
+        if listener.WaitForEvent(1, event) and lldb.SBProcess.EventIsProcessEvent(event):
+            state = lldb.SBProcess.GetStateFromEvent(event)
+            type = event.GetType()
+        
+            if type & lldb.SBProcess.eBroadcastBitSTDOUT:
+                ProcessSTDOUT()
+        
+            if type & lldb.SBProcess.eBroadcastBitSTDERR:
+                ProcessSTDERR()
+    
+        else:
+            state = process.GetState()
+
+        if state != lldb.eStateRunning:
+            # Let's make sure that we drained our streams before exit
+            ProcessSTDOUT()
+            ProcessSTDERR()
+
+        if state == lldb.eStateExited:
+            sys.stdout.write( '\\nPROCESS_EXITED\\n' )
+            os._exit(process.GetExitStatus())
+        elif state == lldb.eStateStopped:
+            sys.stdout.write( '\\nPROCESS_STOPPED\\n' )
+            debugger.HandleCommand('bt')
+            os._exit({exitcode_app_crash})
+        elif state == lldb.eStateCrashed:
+            sys.stdout.write( '\\nPROCESS_CRASHED\\n' )
+            debugger.HandleCommand('bt')
+            os._exit({exitcode_app_crash})
+        elif state == lldb.eStateDetached:
+            sys.stdout.write( '\\nPROCESS_DETACHED\\n' )
+            os._exit({exitcode_app_crash})
+

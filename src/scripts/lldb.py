@@ -1,7 +1,8 @@
-import lldb
+import time
 import os
 import sys
 import shlex
+import lldb
 
 listener = None
 
@@ -78,6 +79,9 @@ def safequit_command(debugger, command, result, internal_dict):
 def autoexit_command(debugger, command, result, internal_dict):
     global listener
     process = lldb.target.process
+
+    detectDeadlockTimeout = {detect_deadlock_timeout}
+    printBacktraceTime = time.time() + detectDeadlockTimeout if detectDeadlockTimeout > 0 else None
     
     # This line prevents internal lldb listener from processing STDOUT/STDERR messages. Without it, an order of log writes is incorrect sometimes
     debugger.GetListener().StopListeningForEvents(process.GetBroadcaster(), lldb.SBProcess.eBroadcastBitSTDOUT | lldb.SBProcess.eBroadcastBitSTDERR )
@@ -118,7 +122,7 @@ def autoexit_command(debugger, command, result, internal_dict):
         if state == lldb.eStateExited:
             sys.stdout.write( '\\nPROCESS_EXITED\\n' )
             os._exit(process.GetExitStatus())
-        elif state == lldb.eStateStopped:
+        elif printBacktraceTime is None and state == lldb.eStateStopped:
             sys.stdout.write( '\\nPROCESS_STOPPED\\n' )
             debugger.HandleCommand('bt')
             os._exit({exitcode_app_crash})
@@ -129,4 +133,10 @@ def autoexit_command(debugger, command, result, internal_dict):
         elif state == lldb.eStateDetached:
             sys.stdout.write( '\\nPROCESS_DETACHED\\n' )
             os._exit({exitcode_app_crash})
-
+        elif printBacktraceTime is not None and time.time() >= printBacktraceTime:
+            printBacktraceTime = None
+            sys.stdout.write( '\\nPRINT_BACKTRACE_TIMEOUT\\n' )
+            debugger.HandleCommand('process interrupt')
+            debugger.HandleCommand('bt all')
+            debugger.HandleCommand('continue')
+            printBacktraceTime = time.time() + 5

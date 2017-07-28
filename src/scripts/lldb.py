@@ -50,6 +50,11 @@ def run_command(debugger, command, result, internal_dict):
     launchInfo = lldb.SBLaunchInfo(args_arr)
     global listener
     launchInfo.SetListener(listener)
+    
+    #This env variable makes NSLog, CFLog and os_log messages get mirrored to stderr
+    #https://stackoverflow.com/a/39581193 
+    launchInfo.SetEnvironmentEntries(['OS_ACTIVITY_DT_MODE=enable'], True)
+    
     lldb.target.Launch(launchInfo, error)
     lockedstr = ': Locked'
     if lockedstr in str(error):

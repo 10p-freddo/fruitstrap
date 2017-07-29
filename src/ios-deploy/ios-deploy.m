@@ -303,7 +303,13 @@ device_desc get_device_desc(CFStringRef model) {
             }
         }
     }
-    return device_db[UNKNOWN_DEVICE_IDX];
+    
+    device_desc res = device_db[UNKNOWN_DEVICE_IDX];
+    
+    res.model = model;
+    res.name = model;
+    
+    return res;
 }
 
 char * MYCFStringCopyUTF8String(CFStringRef aString) {

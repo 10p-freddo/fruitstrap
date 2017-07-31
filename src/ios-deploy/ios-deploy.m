@@ -103,6 +103,7 @@ struct am_device_notification *notify;
 
 // Error codes we report on different failures, so scripts can distinguish between user app exit
 // codes and our exit codes. For non app errors we use codes in reserved 128-255 range.
+const int exitcode_timeout = 252;
 const int exitcode_error = 253;
 const int exitcode_app_crash = 254;
 
@@ -1657,9 +1658,13 @@ void device_callback(struct am_device_notification_callback_info *info, void *ar
 
 void timeout_callback(CFRunLoopTimerRef timer, void *info) {
     if (found_device && (!detect_only)) {
+        // App running for too long
+        NSLog(@"[ !! ] App is running for too long");
+        exit(exitcode_timeout);
         return;
     } else if ((!found_device) && (!detect_only))  {
-        if(best_device_match != NULL) {
+        // Device not found timeout
+        if (best_device_match != NULL) {
             NSLogVerbose(@"Handling best device match.");
             handle_device(best_device_match);
 
@@ -1667,27 +1672,28 @@ void timeout_callback(CFRunLoopTimerRef timer, void *info) {
             best_device_match = NULL;
         }
 
-        if(!found_device)
+        if (!found_device)
             on_error(@"Timed out waiting for device.");
     }
     else
     {
-      if (!debug) {
-          NSLogOut(@"[....] No more devices found.");
-      }
+        // Device detection timeout
+        if (!debug) {
+            NSLogOut(@"[....] No more devices found.");
+        }
 
-      if (detect_only && !found_device) {
-          exit(exitcode_error);
-          return;
-      } else {
-          int mypid = getpid();
-          if ((parent != 0) && (parent == mypid) && (child != 0))
-          {
-              NSLogVerbose(@"Timeout. Killing child (%d) tree.", child);
-              kill_ptree(child, SIGHUP);
-          }
-      }
-      exit(0);
+        if (detect_only && !found_device) {
+            exit(exitcode_error);
+            return;
+        } else {
+            int mypid = getpid();
+            if ((parent != 0) && (parent == mypid) && (child != 0))
+            {
+                NSLogVerbose(@"Timeout. Killing child (%d) tree.", child);
+                kill_ptree(child, SIGHUP);
+            }
+        }
+        exit(0);
     }
 }
 

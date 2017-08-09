@@ -437,6 +437,10 @@ CFStringRef copy_device_support_path(AMDeviceRef device, CFStringRef suffix) {
             if (path == NULL) {
                 path = copy_xcode_path_for(deviceClassPath[i], CFStringCreateWithFormat(NULL, NULL, CFSTR("%@/%@"), version, suffix));
             }
+
+            if (path == NULL) {
+                path = copy_xcode_path_for(deviceClassPath[i], CFStringCreateWithFormat(NULL, NULL, CFSTR("%@.*/%@"), version, suffix));
+            }
         }
         
         CFRelease(version);

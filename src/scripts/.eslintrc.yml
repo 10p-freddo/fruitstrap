@@ -10,10 +10,6 @@ rules:
   # TBD easy fix:
   padded-blocks: off
 
-  # TODO resolve:
-  no-mixed-spaces-and-tabs: off
-  no-trailing-spaces: off
-
   # FUTURE TBD:
   handle-callback-err: off
   indent: off

@@ -12,13 +12,19 @@
     "url": "https://github.com/ios-control/ios-deploy"
   },
   "devDependencies": {
-    "jshint": "2.5.8"
+    "eslint": "~4.19.1",
+    "eslint-config-semistandard": "^12.0.1",
+    "eslint-config-standard": "^11.0.0",
+    "eslint-plugin-import": "^2.12.0",
+    "eslint-plugin-node": "^6.0.1",
+    "eslint-plugin-promise": "^3.8.0",
+    "eslint-plugin-standard": "^3.1.0"
   },
   "scripts": {
     "preinstall": "./src/scripts/check_reqs.js && xcodebuild",
     "build-test": "npm run pycompile && xcodebuild -target ios-deploy-lib && xcodebuild test -scheme ios-deploy-tests",
-    "test": "npm run jshint && npm run build-test",
-    "jshint": "node node_modules/jshint/bin/jshint src/scripts/*.js",
+    "eslint": "eslint src/scripts/*.js",
+    "test": "npm run eslint && npm run build-test",
     "pycompile": "python -m py_compile src/scripts/*.py"
   },
   "keywords": [

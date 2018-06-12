@@ -16,7 +16,8 @@
   },
   "scripts": {
     "preinstall": "./src/scripts/check_reqs.js && xcodebuild",
-    "test": "npm run pycompile && npm run jshint && xcodebuild -target ios-deploy-lib && xcodebuild test -scheme ios-deploy-tests",
+    "build-test": "npm run pycompile && xcodebuild -target ios-deploy-lib && xcodebuild test -scheme ios-deploy-tests",
+    "test": "npm run jshint && npm run build-test",
     "jshint": "node node_modules/jshint/bin/jshint src/scripts/*.js",
     "pycompile": "python -m py_compile src/scripts/*.py"
   },

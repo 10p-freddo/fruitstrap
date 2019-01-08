@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/phonegap/ios-deploy.svg?branch=master)](https://travis-ci.org/phonegap/ios-deploy)
+[![Build Status](https://travis-ci.org/ios-control/ios-deploy.svg?branch=master)](https://travis-ci.org/ios-control/ios-deploy)
 
 ios-deploy
 ==========

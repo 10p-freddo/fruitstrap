@@ -1350,7 +1350,7 @@ void get_battery_level(AMDeviceRef device)
     check_error(AMDeviceValidatePairing(device));
     check_error(AMDeviceStartSession(device));
 
-    CFStringRef result = AMDeviceCopyValue(device, @"com.apple.mobile.battery", @"BatteryCurrentCapacity");
+    CFStringRef result = AMDeviceCopyValue(device, (void*)@"com.apple.mobile.battery", (__bridge CFStringRef)@"BatteryCurrentCapacity");
     NSLogOut(@"BatteryCurrentCapacity:%@",result);
     CFRelease(result);
     

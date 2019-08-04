@@ -121,8 +121,9 @@ const int exitcode_app_crash = 254;
         if (err != 0)                                                           \
         {                                                                       \
             const char* msg = get_error_message(err);                           \
-            /*on_error("Error 0x%x: %s " #call, err, msg ? msg : "unknown.");*/    \
-            on_error(@"Error 0x%x: %@ " #call, err, msg ? [NSString stringWithUTF8String:msg] : @"unknown."); \
+            NSString *description = msg ? [NSString stringWithUTF8String:msg] : @"unknown."; \
+            NSLogJSON(@{@"Event": @"Error", @"Code": @(err), @"Status": description}); \
+            on_error(@"Error 0x%x: %@ " #call, err, description);               \
         }                                                                       \
     } while (false);
 
@@ -558,12 +559,18 @@ void mount_developer_image(AMDeviceRef device) {
     } else if (result == 0xe8000076 /* already mounted */) {
         NSLogOut(@"[ 95%%] Developer disk image already mounted");
     } else {
-        if (result == 0xe80000e2 /* device locked */) {
-            NSLogOut(@"The device is locked.");
+        if (result != 0) {
+            const char* msg = get_error_message(result);
+            NSString *description = @"unknown.";
+            if (msg) {
+                description = [NSString stringWithUTF8String:msg];
+                NSLogOut(@"Error: %@", description);
+            }
             NSLogJSON(@{@"Event": @"Error",
-                        @"Status": @"DeviceLocked"
-                        });
+                        @"Code": @(result),
+                        @"Status": description});
         }
+        
         on_error(@"Unable to mount developer disk image. (%x)", result);
     }
 

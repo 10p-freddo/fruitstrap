@@ -61,8 +61,8 @@ device_desc device_db[] = {
                           ADD_DEVICE("J72bAP", "iPad (2018)",                "iphoneos", "arm64"),
                           ADD_DEVICE("J217AP", "iPad Air 3",                 "iphoneos", "arm64e"),
                           ADD_DEVICE("J218AP", "iPad Air 3 (Cellular)",      "iphoneos", "arm64e"),
-                          ADD_DEVICE("J171AP", "iPad 7",                     "iphoneos", "arm64e"),
-                          ADD_DEVICE("J172AP", "iPad 7 (Cellular)",          "iphoneos", "arm64e"),
+                          ADD_DEVICE("J171AP", "iPad 7",                     "iphoneos", "arm64"),
+                          ADD_DEVICE("J172AP", "iPad 7 (Cellular)",          "iphoneos", "arm64"),
 
                           // iPad Pro
 

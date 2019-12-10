@@ -21,7 +21,12 @@ The 1.x branch has been archived (renamed for now), all development is to be on 
 
 ## Installation
 
-If you don't already have it installed, install [Homebrew](https://brew.sh/) and run:
+If you have previously installed ios-deploy via `npm`, uninstall it by running:
+```
+sudo npm uninstall -g ios-deploy
+```
+
+Install ios-deploy via [Homebrew](https://brew.sh/) by running:
 
 ```
 brew install ios-deploy

@@ -77,6 +77,7 @@ mach_error_t AMDeviceCreateHouseArrestService(AMDeviceRef device, CFStringRef id
 CFSocketNativeHandle  AMDServiceConnectionGetSocket(ServiceConnRef con);
 int AMDeviceSecureTransferPath(int zero, AMDeviceRef device, CFURLRef url, CFDictionaryRef options, void *callback, int cbarg);
 int AMDeviceSecureInstallApplication(int zero, AMDeviceRef device, CFURLRef url, CFDictionaryRef options, void *callback, int cbarg);
+int AMDeviceSecureInstallApplicationBundle(AMDeviceRef device, CFURLRef url, CFDictionaryRef options, void *callback, int cbarg);
 int AMDeviceMountImage(AMDeviceRef device, CFStringRef image, CFDictionaryRef options, void *callback, int cbarg);
 mach_error_t AMDeviceLookupApplications(AMDeviceRef device, CFDictionaryRef options, CFDictionaryRef *result);
 int AMDeviceGetInterfaceType(AMDeviceRef device);
@@ -90,6 +91,7 @@ char *bundle_id = NULL;
 bool interactive = true;
 bool justlaunch = false;
 char *app_path = NULL;
+char *app_deltas = NULL;
 char *device_id = NULL;
 char *args = NULL;
 char *envs = NULL;
@@ -611,11 +613,23 @@ mach_error_t install_callback(CFDictionaryRef dict, int arg) {
     CFNumberGetValue(CFDictionaryGetValue(dict, CFSTR("PercentComplete")), kCFNumberSInt32Type, &percent);
 
     int overall_percent = (percent / 2) + 50;
-    NSLogOut(@"[%3d%%] %@", overall_percent, status);
+
+    // During standard install, the "Status" value contains the actual status,
+    // such as "Copying" or "CreatingStagingDirectory", as well as any
+    // applicable paths. The incremental install version, includes only the
+    // status and a seperate value in "Path" for any applicable paths. This
+    // merges the status and path during incremental installs so the output is
+    // similar between both installation types.
+    CFStringRef path = CFDictionaryGetValue(dict, CFSTR("Path"));
+    NSString *status_with_path = (path != NULL && app_deltas != NULL) ?
+      [NSString stringWithFormat:@"%@ %@", status, path] :
+      (__bridge NSString *)status;
+
+    NSLogOut(@"[%3d%%] %@", overall_percent, status_with_path);
     NSLogJSON(@{@"Event": @"BundleInstall",
                 @"OverallPercent": @(overall_percent),
                 @"Percent": @(percent),
-                @"Status": (__bridge NSString *)status
+                @"Status": status_with_path
                 });
     return 0;
 }
@@ -1275,6 +1289,19 @@ AFCConnectionRef start_house_arrest_service(AMDeviceRef device) {
     return conn;
 }
 
+// Uses realpath() to resolve any symlinks in a path. Returns the resolved
+// path or the original path if an error occurs. This allocates memory for the
+// resolved path and the caller is responsible for freeing it.
+char *resolve_path(char *path)
+{
+  char buffer[PATH_MAX];
+  // Use the original path if realpath() fails, otherwise use resolved value.
+  char *resolved_path = realpath(path, buffer) == NULL ? path : buffer;
+  char *new_path = malloc(strlen(resolved_path) + 1);
+  strcpy(new_path, resolved_path);
+  return new_path;
+}
+
 char const* get_filename_from_path(char const* path)
 {
     char const*ptr = path + strlen(path);
@@ -1707,39 +1734,83 @@ void handle_device(AMDeviceRef device) {
         check_error(AMDeviceValidatePairing(device));
         check_error(AMDeviceStartSession(device));
 
+        CFDictionaryRef options;
+        if (app_deltas == NULL) { // standard install
+          // NOTE: the secure version doesn't seem to require us to start the AFC service
+          ServiceConnRef afcFd;
+          check_error(AMDeviceSecureStartService(device, CFSTR("com.apple.afc"), NULL, &afcFd));
+          check_error(AMDeviceStopSession(device));
+          check_error(AMDeviceDisconnect(device));
 
-        // NOTE: the secure version doesn't seem to require us to start the AFC service
-        ServiceConnRef afcFd;
-        check_error(AMDeviceSecureStartService(device, CFSTR("com.apple.afc"), NULL, &afcFd));
-        check_error(AMDeviceStopSession(device));
-        check_error(AMDeviceDisconnect(device));
+          CFStringRef keys[] = { CFSTR("PackageType") };
+          CFStringRef values[] = { CFSTR("Developer") };
+          options = CFDictionaryCreate(NULL, (const void **)&keys, (const void **)&values, 1, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+          check_error(AMDeviceSecureTransferPath(0, device, url, options, transfer_callback, 0));
+          close(*afcFd);
 
-        CFStringRef keys[] = { CFSTR("PackageType") };
-        CFStringRef values[] = { CFSTR("Developer") };
-        CFDictionaryRef options = CFDictionaryCreate(NULL, (const void **)&keys, (const void **)&values, 1, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
+          AMDeviceConnect(device);
+          assert(AMDeviceIsPaired(device));
+          check_error(AMDeviceValidatePairing(device));
+          check_error(AMDeviceStartSession(device));
+          check_error(AMDeviceSecureInstallApplication(0, device, url, options, install_callback, 0));
+        } else { // incremental install
+          check_error(AMDeviceStopSession(device));
+          check_error(AMDeviceDisconnect(device));
 
-        //assert(AMDeviceTransferApplication(afcFd, path, NULL, transfer_callback, NULL) == 0);
-        check_error(AMDeviceSecureTransferPath(0, device, url, options, transfer_callback, 0));
-        close(*afcFd);
+          CFStringRef extracted_bundle_id = NULL;
+          CFStringRef extracted_bundle_id_ref = get_bundle_id(url);
+          if (bundle_id != NULL) {
+            extracted_bundle_id = CFStringCreateWithCString(NULL, bundle_id, kCFStringEncodingUTF8);
+            CFRelease(extracted_bundle_id_ref);
+          } else {
+            if (extracted_bundle_id_ref == NULL) {
+              on_error(@"[ ERROR] Could not determine bundle id.");
+            }
+            extracted_bundle_id = extracted_bundle_id_ref;
+          }
 
+          CFStringRef deltas_path =
+            CFStringCreateWithCString(NULL, app_deltas, kCFStringEncodingUTF8);
+          CFURLRef deltas_relative_url =
+            CFURLCreateWithFileSystemPath(NULL, deltas_path, kCFURLPOSIXPathStyle, false);
+          CFURLRef app_deltas_url = CFURLCopyAbsoluteURL(deltas_relative_url);
+          CFStringRef prefer_wifi = no_wifi ? CFSTR("0") : CFSTR("1");
 
+          // These values were determined by inspecting Xcode 11.1 logs with the Console app.
+          CFStringRef keys[] = {
+            CFSTR("CFBundleIdentifier"),
+            CFSTR("CloseOnInvalidate"),
+            CFSTR("InvalidateOnDetach"),
+            CFSTR("IsUserInitiated"),
+            CFSTR("PackageType"),
+            CFSTR("PreferWifi"),
+            CFSTR("ShadowParentKey"),
+          };
+          CFStringRef values[] = {
+            extracted_bundle_id,
+            CFSTR("1"),
+            CFSTR("1"),
+            CFSTR("1"),
+            CFSTR("Developer"),
+            prefer_wifi,
+            (CFStringRef)app_deltas_url,
+          };
 
-        AMDeviceConnect(device);
-        assert(AMDeviceIsPaired(device));
-        check_error(AMDeviceValidatePairing(device));
-        check_error(AMDeviceStartSession(device));
+          CFIndex size = sizeof(keys)/sizeof(CFStringRef);
+          options = CFDictionaryCreate(NULL, (const void **)&keys, (const void **)&values, size, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks);
 
-        // // NOTE: the secure version doesn't seem to require us to start the installation_proxy service
-        // // Although I can't find it right now, I in some code that the first param of AMDeviceSecureInstallApplication was a "dontStartInstallProxy"
-        // // implying this is done for us by iOS already
-
-        //service_conn_t installFd;
-        //assert(AMDeviceSecureStartService(device, CFSTR("com.apple.mobile.installation_proxy"), NULL, &installFd) == 0);
-
-        //mach_error_t result = AMDeviceInstallApplication(installFd, path, options, install_callback, NULL);
-        check_error(AMDeviceSecureInstallApplication(0, device, url, options, install_callback, 0));
-
-        // close(installFd);
+          AMDeviceConnect(device);
+          assert(AMDeviceIsPaired(device));
+          check_error(AMDeviceValidatePairing(device));
+          check_error(AMDeviceStartSession(device));
+          check_error(AMDeviceSecureInstallApplicationBundle(device, url, options, install_callback, 0));
+          CFRelease(extracted_bundle_id);
+          CFRelease(deltas_path);
+          CFRelease(deltas_relative_url);
+          CFRelease(app_deltas_url);
+          free(app_deltas);
+          app_deltas = NULL;
+        }
 
         check_error(AMDeviceStopSession(device));
         check_error(AMDeviceDisconnect(device));
@@ -1836,6 +1907,7 @@ void usage(const char* app) {
         @"  -L, --justlaunch             just launch the app and exit lldb\n"
         @"  -v, --verbose                enable verbose output\n"
         @"  -m, --noinstall              directly start debugging without app install (-d not required)\n"
+        @"  -A, --app_deltas             incremental install. must specify a directory to store app deltas to determine what needs to be installed\n"
         @"  -p, --port <number>          port used for device, default: dynamic\n"
         @"  -r, --uninstall              uninstall the app before install (do not use with -m; app cache and data are cleared) \n"
         @"  -9, --uninstall_only         uninstall the app ONLY. Use only with -1 <bundle_id> \n"
@@ -1906,11 +1978,12 @@ int main(int argc, char *argv[]) {
         { "error_output", required_argument, NULL, 'E' },
         { "detect_deadlocks", required_argument, NULL, 1000 },
         { "json", no_argument, NULL, 'j'},
+        { "app_deltas", required_argument, NULL, 'A'},
         { NULL, 0, NULL, 0 },
     };
     int ch;
 
-    while ((ch = getopt_long(argc, argv, "VmcdvunrILeD:R:i:b:a:t:p:1:2:o:l:w:9BWjNs:OE:C", longopts, NULL)) != -1)
+    while ((ch = getopt_long(argc, argv, "VmcdvunrILeD:R:i:b:a:t:p:1:2:o:l:w:9BWjNs:OE:CA:", longopts, NULL)) != -1)
     {
         switch (ch) {
         case 'm':
@@ -2031,6 +2104,9 @@ int main(int argc, char *argv[]) {
             break;
         case 'j':
             _json_output = true;
+            break;
+        case 'A':
+            app_deltas = resolve_path(optarg);
             break;
         default:
             usage(argv[0]);

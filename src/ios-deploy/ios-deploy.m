@@ -596,11 +596,14 @@ void mount_developer_image(AMDeviceRef device) {
     NSLogVerbose(@"Developer disk image: %@", image_path);
 
     FILE* sig = fopen(CFStringGetCStringPtr(sig_path, kCFStringEncodingMacRoman), "rb");
-    void *sig_buf = malloc(128);
-    size_t bytes_read = fread(sig_buf, 1, 128, sig);
-    assert( bytes_read == 128);
+    size_t buf_size = 128;
+    void *sig_buf = malloc(buf_size);
+    size_t bytes_read = fread(sig_buf, 1, buf_size, sig);
+    if (bytes_read != buf_size) {
+      on_sys_error(@"fread read %d bytes but expected %d bytes.", bytes_read, buf_size);
+    }
     fclose(sig);
-    CFDataRef sig_data = CFDataCreateWithBytesNoCopy(NULL, sig_buf, 128, NULL);
+    CFDataRef sig_data = CFDataCreateWithBytesNoCopy(NULL, sig_buf, buf_size, NULL);
     CFRelease(sig_path);
 
     CFTypeRef keys[] = { CFSTR("ImageSignature"), CFSTR("ImageType") };
@@ -987,7 +990,9 @@ void fdvendor_callback(CFSocketRef s, CFSocketCallBackType callbackType, CFDataR
     lldb_socket  = CFSocketCreateWithNative(NULL, socket, kCFSocketDataCallBack, &lldb_callback, NULL);
     int flag = 1;
     int res = setsockopt(socket, IPPROTO_TCP, TCP_NODELAY, (char *) &flag, sizeof(flag));
-    assert(res == 0);
+    if (res == -1) {
+      on_sys_error(@"Setting socket option failed.");
+    }
     if (lldb_socket_runloop) {
         CFRelease(lldb_socket_runloop);
     }
@@ -1067,7 +1072,9 @@ void start_remote_debug_server(AMDeviceRef device) {
     CFRelease(address_data);
     socklen_t addrlen = sizeof(addr4);
     int res = getsockname(CFSocketGetNative(fdvendor),(struct sockaddr *)&addr4,&addrlen);
-    assert(res == 0);
+    if (res == -1) {
+      on_sys_error(@"Getting socket name failed.");
+    }
     port = ntohs(addr4.sin_port);
 
     if (fdvendor_runloop) {

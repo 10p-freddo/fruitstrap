@@ -16,7 +16,7 @@ The ios-deploy binary in Homebrew should work on macOS 10.0+ with Xcode7+. It ha
  - macOS 10.14 Mojave, 10.15 Catalina, and 11.0b BigSur
  - iOS 13.0 and iOS 14.0b
  - Xcode 11.3, 11.6, 12.0b3
- - Intel and Arm64e based Apple Macintosh Computers
+ - x86 and Arm64e based Apple Macintosh Computers
 
 ## Roadmap
 

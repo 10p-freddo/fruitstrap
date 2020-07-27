@@ -64,6 +64,7 @@ python -m py_compile src/scripts/*.py && xcodebuild -target ios-deploy-lib && xc
         -l, --list[=<dir>]           list all app files or the specified directory
         -o, --upload <file>          upload file
         -w, --download[=<path>]      download app tree or the specified file/directory
+        -f, --file_system            access the raw file system
         -2, --to <target pathname>   use together with up/download file/tree. specify target
         -D, --mkdir <dir>            make directory on device
         -R, --rm <path>              remove file or directory on device (directories must be empty)
@@ -122,6 +123,21 @@ The commands below assume that you have an app called `my.app` with bundle id `b
     
     // list all bundle ids of all apps on your device
     ios-deploy --list_bundle_id
+    
+    // list the files in cameral roll, a.k.a /DCIM
+    ios-deploy -f -l/DCIM
+    
+    // download the file in /DCIM
+    ios-deploy -f -w/DCIM/100APPLE/IMG_001.jpg
+    
+    // remove the file /DCIM
+    ios-deploy -f -R /DCIM/100APPLE/IMG_001.jpg
+    
+    // make directoly in /DCIM
+    ios-deploy -f -D/DCIM/test
+    
+    // upload file to /DCIM
+    ios-deploy -f -o/Users/ryan/Downloads/test.png -2/DCIM/test.png
 
 ## Demo
 

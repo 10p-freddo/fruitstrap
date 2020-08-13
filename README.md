@@ -50,37 +50,43 @@ python -m py_compile src/scripts/*.py && xcodebuild -target ios-deploy-lib && xc
 ## Usage
 
     Usage: ios-deploy [OPTION]...
-        -d, --debug                  launch the app in lldb after installation
-        -i, --id <device_id>         the id of the device to connect to
-        -c, --detect                 only detect if the device is connected
-        -b, --bundle <bundle.app>    the path to the app bundle to be installed
-        -a, --args <args>            command line arguments to pass to the app when launching it
-        -s, --envs <envs>            environment variables, space separated key-value pairs, to pass to the app when launching it
-        -t, --timeout <timeout>      number of seconds to wait for a device to be connected
-        -u, --unbuffered             don't buffer stdout
-        -n, --nostart                do not start the app when debugging
-        -I, --noninteractive         start in non interactive mode (quit when app crashes or exits)
-        -L, --justlaunch             just launch the app and exit lldb
-        -v, --verbose                enable verbose output
-        -m, --noinstall              directly start debugging without app install (-d not required)
-        -A, --app_deltas             incremental install. must specify a directory to store app deltas to determine what needs to be installed
-        -p, --port <number>          port used for device, default: dynamic
-        -r, --uninstall              uninstall the app before install (do not use with -m; app cache and data are cleared) 
-        -9, --uninstall_only         uninstall the app ONLY. Use only with -1 <bundle_id> 
-        -1, --bundle_id <bundle id>  specify bundle id for list and upload
-        -l, --list[=<dir>]           list all app files or the specified directory
-        -o, --upload <file>          upload file
-        -w, --download[=<path>]      download app tree or the specified file/directory
-        -f, --file_system            access the raw file system
-        -2, --to <target pathname>   use together with up/download file/tree. specify target
-        -D, --mkdir <dir>            make directory on device
-        -R, --rm <path>              remove file or directory on device (directories must be empty)
-        -V, --version                print the executable version 
-        -e, --exists                 check if the app with given bundle_id is installed or not 
-        -B, --list_bundle_id         list bundle_id 
-        -W, --no-wifi                ignore wifi devices
-        -O, --output <file>          write stdout and stderr to this file
-        --detect_deadlocks <sec>     start printing backtraces for all threads periodically after specific amount of seconds
+	  -d, --debug                  launch the app in lldb after installation
+	  -i, --id <device_id>         the id of the device to connect to
+	  -c, --detect                 only detect if the device is connected
+	  -b, --bundle <bundle.app>    the path to the app bundle to be installed
+	  -a, --args <args>            command line arguments to pass to the app when launching it
+	  -s, --envs <envs>            environment variables, space separated key-value pairs, to pass to the app when launching it
+	  -t, --timeout <timeout>      number of seconds to wait for a device to be connected
+	  -u, --unbuffered             don't buffer stdout
+	  -n, --nostart                do not start the app when debugging
+	  -N, --nolldb                 start debugserver only. do not run lldb. Can not be used with args or envs options
+	  -I, --noninteractive         start in non interactive mode (quit when app crashes or exits)
+	  -L, --justlaunch             just launch the app and exit lldb
+	  -v, --verbose                enable verbose output
+	  -m, --noinstall              directly start debugging without app install (-d not required)
+	  -A, --app_deltas             incremental install. must specify a directory to store app deltas to determine what needs to be installed
+	  -p, --port <number>          port used for device, default: dynamic
+	  -r, --uninstall              uninstall the app before install (do not use with -m; app cache and data are cleared) 
+	  -9, --uninstall_only         uninstall the app ONLY. Use only with -1 <bundle_id> 
+	  -1, --bundle_id <bundle id>  specify bundle id for list and upload
+	  -l, --list[=<dir>]           list all app files or the specified directory
+	  -o, --upload <file>          upload file
+	  -w, --download[=<path>]      download app tree or the specified file/directory
+	  -2, --to <target pathname>   use together with up/download file/tree. specify target
+	  -D, --mkdir <dir>            make directory on device
+	  -R, --rm <path>              remove file or directory on device (directories must be empty)
+	  -X, --rmtree <path>          remove directory and all contained files recursively on device
+	  -V, --version                print the executable version 
+	  -e, --exists                 check if the app with given bundle_id is installed or not 
+	  -B, --list_bundle_id         list bundle_id 
+	  -W, --no-wifi                ignore wifi devices
+	  -C, --get_battery_level      get battery current capacity 
+	  -O, --output <file>          write stdout to this file
+	  -E, --error_output <file>    write stderr to this file
+	  --detect_deadlocks <sec>     start printing backtraces for all threads periodically after specific amount of seconds
+	  -f, --file_system            specify file system for mkdir / list / upload / download / rm
+	  -F, --non-recursively        specify non-recursively walk directory
+	  -j, --json                   format output as JSON
 
 ## Examples
 

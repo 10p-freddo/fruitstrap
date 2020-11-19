@@ -658,7 +658,16 @@ void mount_developer_image(AMDeviceRef device) {
         
         on_error(@"Unable to mount developer disk image. (%x)", result);
     }
-
+	
+    CFStringRef symbols_path = copy_device_support_path(device, CFSTR("Symbols"));
+    if (symbols_path != NULL)
+    {
+        NSLogOut(@"Symbol Path: %@", symbols_path);
+        NSLogJSON(@{@"Event": @"MountDeveloperImage",
+                    @"SymbolsPath": (__bridge NSString *)symbols_path
+                    });		CFRelease(symbols_path);
+    }
+	
     CFRelease(image_path);
     CFRelease(options);
 }

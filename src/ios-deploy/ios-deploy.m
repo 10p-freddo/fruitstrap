@@ -2191,8 +2191,9 @@ void device_callback(struct am_device_notification_callback_info *info, void *ar
             break;
         case ADNCI_MSG_DISCONNECTED:
         {
+            CFStringRef device_interface_name = get_device_interface_name(info->dev);
             CFStringRef device_uuid = AMDeviceCopyDeviceIdentifier(info->dev);
-            NSLogOut(@"[....] Disconnected %@", device_uuid);
+            NSLogOut(@"[....] Disconnected %@ from %@.", device_uuid, device_interface_name);
             CFRelease(device_uuid);
             break;
         }

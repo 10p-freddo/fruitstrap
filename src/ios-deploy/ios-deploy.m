@@ -99,7 +99,7 @@ char *command = NULL;
 char const*target_filename = NULL;
 char const*upload_pathname = NULL;
 char *bundle_id = NULL;
-char *key = NULL;
+NSMutableArray *keys = NULL;
 bool interactive = true;
 bool justlaunch = false;
 bool file_system = false;
@@ -1766,9 +1766,11 @@ void list_bundle_id(AMDeviceRef device)
                          @"CFBundleDisplayName",
                          @"CFBundleVersion",
                          @"CFBundleShortVersionString", nil];
-    if (key) {
-        NSArray * ns_keys = [[NSString stringWithUTF8String:key] componentsSeparatedByString:@"&"];
-        [a addObjectsFromArray:ns_keys];
+    if (keys) {
+        for (NSString * key in keys) {
+            [a addObjectsFromArray:[key componentsSeparatedByCharactersInSet:
+                                    [NSCharacterSet characterSetWithCharactersInString:@",&"]]];
+        }
     }
     NSDictionary *optionsDict = [NSDictionary dictionaryWithObject:a forKey:@"ReturnAttributes"];
     CFDictionaryRef options = (CFDictionaryRef)optionsDict;
@@ -2346,7 +2348,7 @@ void usage(const char* app) {
         @"  -f, --file_system            specify file system for mkdir / list / upload / download / rm\n"
         @"  -F, --non-recursively        specify non-recursively walk directory\n"
         @"  -j, --json                   format output as JSON\n"
-        @"  -k, --key                    keys for the properties of the bundle. Joined by '&' and used only with -B <list_bundle_id> and -j <json> \n"
+        @"  -k, --key                    keys for the properties of the bundle. Joined by ',' and used only with -B <list_bundle_id> and -j <json> \n"
         @"  --custom-script <script>     path to custom python script to execute in lldb\n"
         @"  --custom-command <command>   specify additional lldb commands to execute\n",
         [NSString stringWithUTF8String:app]);
@@ -2558,7 +2560,8 @@ int main(int argc, char *argv[]) {
             [custom_commands appendFormat:@"%s\n", optarg];
             break;
         case 'k':
-            key = optarg;
+            if (!keys) keys = [[NSMutableArray alloc] init];
+            [keys addObject: [NSString stringWithUTF8String:optarg]];
             break;
         default:
             usage(argv[0]);

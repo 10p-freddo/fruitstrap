@@ -8,3 +8,4 @@ src/ios-deploy/lldb.py.h
 package-lock.json
 /ios-deploy.xcodeproj/xcuserdata
 /ios-deploy.xcodeproj/project.xcworkspace
+/bazel-*

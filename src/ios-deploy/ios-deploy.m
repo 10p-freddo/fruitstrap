@@ -2364,7 +2364,7 @@ void handle_device(AMDeviceRef device) {
     }
     if (found_device)
     {
-        NSLogOut(@"Skipping %@.", device_full_name);
+        NSLogVerbose(@"Skipping %@.", device_full_name);
         return;
     }
     CFStringRef found_device_id = CFAutorelease(AMDeviceCopyDeviceIdentifier(device));
@@ -2373,7 +2373,7 @@ void handle_device(AMDeviceRef device) {
         if (CFStringCompare(deviceCFSTR, found_device_id, kCFCompareCaseInsensitive) == kCFCompareEqualTo) {
             found_device = true;
         } else {
-            NSLogOut(@"Skipping %@.", device_full_name);
+            NSLogVerbose(@"Skipping %@.", device_full_name);
             return;
         }
     } else {

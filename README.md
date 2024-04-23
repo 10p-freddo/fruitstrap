@@ -3,7 +3,7 @@
 ios-deploy
 ==========
 
-Install and debug iOS apps from the command line. Designed to work on un-jailbroken devices.
+Install and debug iOS apps from the command line. Designed to work on un-jailbroken devices running iOS versions prior to iOS17. [iOS17 updated the System frameworks used to communicate with devices and Apple created their own command-line tools that can largely replace ios-deploy](https://github.com/ios-control/ios-deploy/issues/588).
 
 ## Requirements
 
